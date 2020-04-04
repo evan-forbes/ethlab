@@ -3,8 +3,10 @@ package thereum
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -16,7 +18,9 @@ import (
 	"github.com/evan-forbes/ethlab/txpool"
 )
 
-// TODO: find which functions need to be called to commit to the chain.
+//
+
+// TODO: verify transactions before adding to the transactoin pool
 
 /*
 so far the appears to be
@@ -25,14 +29,19 @@ so far the appears to be
 */
 
 type Thereum struct {
-	ctx    context.Context
-	wg     *sync.WaitGroup
-	TxPool txpool.Pooler
+	ctx      context.Context
+	wg       *sync.WaitGroup
+	root     common.Address
+	TxPool   txpool.Pooler
+	gasLimit GasLimiter
+	delay    Delayer
 	// Signer types.Signer
 	database   ethdb.Database   // In memory database to store our testing data
 	blockchain *core.BlockChain // Ethereum blockchain to handle the consensus
 
-	mu           sync.Mutex
+	mu sync.Mutex
+
+	// try and see if I can get away without using this shit vvv
 	pendingBlock *types.Block   // Currently pending block that will be imported on request
 	pendingState *state.StateDB // Currently pending state that will be the active on on request
 
@@ -41,9 +50,11 @@ type Thereum struct {
 	config *params.ChainConfig
 }
 
-func New(config *Config) (*Thereum, error) {
+func New(config *Config, root common.Address) (*Thereum, error) {
 	// init the configured db
 	db := config.DB()
+	delay := config.Delayer()
+
 	// init the genesis block + any accounts designated in config.Allocaiton
 	genesis, accounts, err := config.Genesis()
 	if err != nil {
@@ -58,19 +69,75 @@ func New(config *Config) (*Thereum, error) {
 		TxPool:     txpool.New(),
 		database:   db,
 		blockchain: bc,
+		root:       root,
 	}, nil
 }
 
 func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
+	defer t.Shutdown(wg)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			// issue a new pending block
+			// t.Delay()
+			t.mu.Lock()
+			block, state := t.NewPendingBlock()
 
+			t.Commit(block)
+			t.mu.Unlock()
+
+		}
+	}
+}
+
+// BatchTxs will add the max number of transaction to the provided block.
+func (t *Thereum) BatchTxs() []*types.Transaction {
+	// fetch the number a transactions, until all of the gas is used
+	var txs []*types.Transaction
+	for gas := new(big.Int); gas.Cmp(); {
+	}
+	return txs
+}
+
+// NewPendingBlock mints a new block, filling it with transactions from the transaction pool
+func (t *Thereum) NewPendingBlock() (*types.Block, *state.StateDB) {
+	blocks, _ := core.GenerateChain(
+		t.config,
+		t.blockchain.CurrentBlock(),
+		ethash.NewFaker(),
+		t.database,
+		1,
+		func(i int, b *core.BlockGen) {
+			b.SetCoinbase(t.root)
+			txs := t.BatchTxs()
+			for _, tx := range txs {
+				b.AddTxWithChain(t.blockchain, tx)
+			}
+		},
+	)
+	statedb, _ := t.blockchain.State()
+
+	freshBlock := blocks[0]
+	freshState, _ := state.New(freshBlock.Root(), statedb.Database())
+	return freshBlock, freshState
+}
+
+func (t *Thereum) Commit(block *types.Block) {
+	_, err := t.blockchain.InsertChain([]*types.Block{block})
+	if err != nil {
+		panic(err)
+	}
+	return
 }
 
 func (t *Thereum) Start() {
 
 }
 
-func (t *Thereum) Shutdown() {
-
+func (t *Thereum) Shutdown(wg *sync.WaitGroup) {
+	defer wg.Done()
 }
 
 // // validateTx checks whether a transaction is valid according to the consensus

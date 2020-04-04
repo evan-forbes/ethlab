@@ -15,6 +15,8 @@ type Config struct {
 	InMemory      bool              `json:"in_memory"`
 	GenesisConfig *core.Genesis     `json:"genesis"`
 	Allocation    map[string]string `json:"allocation"` // "Name": "100000000000000000"
+	GasLimit      string            `json:"gas_limit"`
+	Delay         uint
 }
 
 // DB returns the proper database specified by the config
@@ -24,6 +26,16 @@ func (c Config) DB() ethdb.Database {
 		return rawdb.NewMemoryDatabase()
 	}
 	return rawdb.NewMemoryDatabase()
+}
+
+// GasLimiter uses the config to init a new GasLimiter
+// TODO: alter to include more ways to limit gas
+func (c Config) GasLimiter() GasLimiter {
+	out, ok := new(big.Int).SetString(c.GasLimit, 10)
+	if !ok {
+		return &ConstantGasLimit{big.NewInt(10485760)}
+	}
+	return &ConstantGasLimit{limit: out}
 }
 
 // Genesis issues a new genesis configuration specified in the config
