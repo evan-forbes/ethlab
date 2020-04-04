@@ -2,6 +2,7 @@ package txpool
 
 import (
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -10,7 +11,7 @@ import (
 // Pooler descibes the methods expected by Thereum to interact with a pool of transactions.
 type Pooler interface {
 	Next() (*types.Transaction, bool)
-	Insert(author common.Address, tx *types.Transaction) error
+	Insert(author common.Address, tx *types.Transaction) 
 }
 
 // TxPool is the most basic
@@ -18,6 +19,7 @@ type TxPool struct {
 	Pool map[common.Address]map[uint64]*types.Transaction
 	// SortedTransactions map[]
 	Order []*txID
+	mu sync.RWMutex
 }
 
 func New() *TxPool {
@@ -32,6 +34,8 @@ func (pool *TxPool) Next() (*types.Transaction, bool) {
 	if len(pool.Order) == 0 {
 		return nil, false
 	}
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 	nextID := pool.Order[len(pool.Order)-1]
 	pool.Order[len(pool.Order)-1] = nil
 	pool.Order = pool.Order[:len(pool.Order)-1
@@ -41,7 +45,7 @@ func (pool *TxPool) Next() (*types.Transaction, bool) {
 
 // Insert adds a transaction to the pool, replaceing the old transaction if the nonce is the same.
 // Transactions should be verified before insertion.
-func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) error {
+func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) {
 	nonce := tx.Nonce()
 	id := &txID{address: author, nonce: nonce, gasPrice: tx.GasPrice()}
 	// check to see if this transaction already exists
@@ -49,22 +53,24 @@ func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) error {
 	if has {
 		// if the gas price is not larger, don't do anything
 		if oldtx.GasPrice().Cmp(tx.GasPrice()) != 1 {
-			return nil
+			return 
 		}
 		// remove the old transaction from the ordered set before placing
 		remove(pool.Order, id, 0, len(pool.Order)-1)
 	}
 	//// place the transaction in the pool ////
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 	pool.Pool[author][nonce] = tx
 	id := &txID{address: author, nonce: nonce, gasPrice: tx.GasPrice()}
 
 	// don't attempt to search and insert the txID if there none to search
 	if len(pool.Order) == 0 {
 		pool.Order = append(pool.Order, id)
-		return nil
+		return 
 	}
 	place(pool.Order, id, 0, len(pool.Order)-1)
-	return nil
+	return 
 }
 
 type txID struct {
