@@ -11,36 +11,52 @@ import (
 // Pooler descibes the methods expected by Thereum to interact with a pool of transactions.
 type Pooler interface {
 	Next() (*types.Transaction, bool)
-	Insert(author common.Address, tx *types.Transaction) 
+	Insert(author common.Address, tx *types.Transaction)
 }
 
-// TxPool is the most basic
+// TxPool maintains a queue of transactions sorted by gas price
 type TxPool struct {
 	Pool map[common.Address]map[uint64]*types.Transaction
 	// SortedTransactions map[]
 	Order []*txID
-	mu sync.RWMutex
+	mu    sync.RWMutex
 }
 
+// New inits a new TxPool
 func New() *TxPool {
 	return &TxPool{
 		Pool: make(map[common.Address]map[uint64]*types.Transaction),
 	}
 }
 
-// Next pops the highest gas price transaction
-// TODO: add comments and test
+// Next pops and returns the highest gas price transaction, along with
+// a bool determining if there are any transactions left.
 func (pool *TxPool) Next() (*types.Transaction, bool) {
 	if len(pool.Order) == 0 {
 		return nil, false
 	}
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
+
+	// pop the highest gas price transaction off
 	nextID := pool.Order[len(pool.Order)-1]
 	pool.Order[len(pool.Order)-1] = nil
-	pool.Order = pool.Order[:len(pool.Order)-1
+	pool.Order = pool.Order[:len(pool.Order)-1]
+
+	// get the tx from the pool
 	tx, has := pool.Pool[nextID.address][nextID.nonce]
-	return tx, has
+	if !has {
+		// if a tx has somehow been removed from the pool but not from the order
+		return nil, true
+	}
+
+	// remove the transaction from the pool
+	delete(pool.Pool[nextID.address], nextID.nonce)
+
+	// // remove the transaction from the ordered set
+	// remove(pool.Order, nextID, 0, len(pool.Order)-1)
+
+	return tx, true
 }
 
 // Insert adds a transaction to the pool, replaceing the old transaction if the nonce is the same.
@@ -48,29 +64,33 @@ func (pool *TxPool) Next() (*types.Transaction, bool) {
 func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) {
 	nonce := tx.Nonce()
 	id := &txID{address: author, nonce: nonce, gasPrice: tx.GasPrice()}
+
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 	// check to see if this transaction already exists
 	oldtx, has := pool.Pool[author][nonce]
 	if has {
 		// if the gas price is not larger, don't do anything
 		if oldtx.GasPrice().Cmp(tx.GasPrice()) != 1 {
-			return 
+			return
 		}
 		// remove the old transaction from the ordered set before placing
+		// this is the only time the remove func is used and might be uneccessary
 		remove(pool.Order, id, 0, len(pool.Order)-1)
 	}
-	//// place the transaction in the pool ////
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-	pool.Pool[author][nonce] = tx
-	id := &txID{address: author, nonce: nonce, gasPrice: tx.GasPrice()}
 
-	// don't attempt to search and insert the txID if there none to search
+	//// add the transaction in the pool ////
+	pool.Pool[author][nonce] = tx
+
+	// don't attempt to search and insert the txID if there're none to search
 	if len(pool.Order) == 0 {
 		pool.Order = append(pool.Order, id)
-		return 
+		return
 	}
+
+	// put the transaction into the ordered set
 	place(pool.Order, id, 0, len(pool.Order)-1)
-	return 
+	return
 }
 
 type txID struct {
@@ -79,7 +99,7 @@ type txID struct {
 	gasPrice *big.Int
 }
 
-// place inserts a transaction id in order (sorted by gas price, using recursion)
+// place inserts a transaction id in order, sorted by gas price
 func place(s []*txID, n *txID, head, tail int) {
 	diff := tail - head
 	// if our search has finished
@@ -108,6 +128,7 @@ func place(s []*txID, n *txID, head, tail int) {
 }
 
 // remove deletes a transaction id from the ordered slice
+// its kind of slow, so try not to use too much.
 func remove(s []*txID, n *txID, head, tail int) {
 	diff := tail - head
 	// if our search has finished
@@ -128,23 +149,30 @@ func remove(s []*txID, n *txID, head, tail int) {
 	node := s[delta]
 	switch node.gasPrice.Cmp(n.gasPrice) {
 	case 0:
-		s = append(s, nil)
-		copy(s[delta+1:], s[delta:])
-		s[delta] = n
+		// check all txs with the potentially same gas price
+		for i := head; i < tail; i++ {
+			if sameTxID(s[i], n) {
+				sliceDelete(s, i)
+			}
+		}
 	case -1:
-		// try againg above delta
-		place(s, n, delta, tail)
+		// try again above delta
+		remove(s, n, delta, tail)
 	case 1:
 		// try again below delta
-		place(s, n, head, delta)
+		remove(s, n, head, delta)
 	}
 	return
 }
 
-func sliceDelete(a []interface, i int) {
+func sameTxID(a, b *txID) bool {
+	return a.address == b.address && a.nonce == b.nonce
+}
+
+func sliceDelete(a []*txID, i int) {
 	if i < len(a)-1 {
 		copy(a[i:], a[i+1:])
-	  }
-	  a[len(a)-1] = nil
-	  a = a[:len(a)-1]
+	}
+	a[len(a)-1] = nil
+	a = a[:len(a)-1]
 }

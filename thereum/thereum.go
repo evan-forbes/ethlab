@@ -29,12 +29,13 @@ so far the appears to be
 */
 
 type Thereum struct {
-	ctx      context.Context
-	wg       *sync.WaitGroup
-	root     common.Address
-	TxPool   txpool.Pooler
-	gasLimit GasLimiter
-	delay    Delayer
+	ctx     context.Context
+	wg      *sync.WaitGroup
+	root    common.Address
+	TxPool  txpool.Pooler
+	gasLimt *big.Int
+	// gasLimit GasLimiter
+	// delay    Delayer
 	// Signer types.Signer
 	database   ethdb.Database   // In memory database to store our testing data
 	blockchain *core.BlockChain // Ethereum blockchain to handle the consensus
@@ -53,7 +54,7 @@ type Thereum struct {
 func New(config *Config, root common.Address) (*Thereum, error) {
 	// init the configured db
 	db := config.DB()
-	delay := config.Delayer()
+	// delay := config.Delayer()
 
 	// init the genesis block + any accounts designated in config.Allocaiton
 	genesis, accounts, err := config.Genesis()
@@ -70,6 +71,7 @@ func New(config *Config, root common.Address) (*Thereum, error) {
 		database:   db,
 		blockchain: bc,
 		root:       root,
+		gasLimt:    big.NewInt(10485760), // TODO: config and make more flexible
 	}, nil
 }
 
@@ -96,7 +98,7 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 func (t *Thereum) BatchTxs() []*types.Transaction {
 	// fetch the number a transactions, until all of the gas is used
 	var txs []*types.Transaction
-	for gas := new(big.Int); gas.Cmp(); {
+	for gas := new(big.Int); gas.Cmp(t.gasLimt); {
 	}
 	return txs
 }
