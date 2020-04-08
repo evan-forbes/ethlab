@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -43,8 +44,8 @@ type Thereum struct {
 	mu sync.Mutex
 
 	// try and see if I can get away without using this shit vvv
-	pendingBlock *types.Block   // Currently pending block that will be imported on request
-	pendingState *state.StateDB // Currently pending state that will be the active on on request
+	latestBlock *types.Block   // Currently pending block that will be imported on request
+	latestState *state.StateDB // Currently pending state that will be the active on on request
 
 	events *filters.EventSystem // Event system for filtering log events live
 
@@ -82,14 +83,15 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 		case <-ctx.Done():
 			return
 		default:
-			// issue a new pending block
-			// t.Delay()
+			// TODO: this is fugly
+			// create a new block using existing transaction in the pool
 			t.mu.Lock()
 			block, state := t.NewPendingBlock()
-
+			t.latestBlock = block
+			t.latestState = state
 			t.Commit(block)
 			t.mu.Unlock()
-
+			time.Sleep(time.Millisecond * 50)
 		}
 	}
 }
@@ -98,7 +100,16 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 func (t *Thereum) BatchTxs() []*types.Transaction {
 	// fetch the number a transactions, until all of the gas is used
 	var txs []*types.Transaction
-	for gas := new(big.Int); gas.Cmp(t.gasLimt); {
+	for gas := new(big.Int); gas.Cmp(t.gasLimt) < 0; {
+		tx, has := t.TxPool.Next()
+		if tx == nil {
+			continue
+		}
+		if !has {
+			break
+		}
+		gas.Add(gas, tx.Cost())
+		txs = append(txs, tx)
 	}
 	return txs
 }
