@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/matryer/is"
 )
 
@@ -35,6 +37,11 @@ func TestPlace(t *testing.T) {
 	place(s, n, 0, len(s)-1)
 	is.Equal(n.gasPrice.String(), s[1].gasPrice.String())
 	// is.Equal(n.gasPrice.String(), s[6].gasPrice.String())
+}
+
+func genTxs(author common.Address, nonce uint64) []*types.Transaction {
+	var out []*types.Transaction
+	return out
 }
 
 func TestRemove(t *testing.T) {

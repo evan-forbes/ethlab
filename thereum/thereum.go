@@ -3,7 +3,6 @@ package thereum
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -30,13 +29,13 @@ so far the appears to be
 */
 
 type Thereum struct {
-	ctx     context.Context
-	wg      *sync.WaitGroup
-	root    common.Address
-	TxPool  txpool.Pooler
-	gasLimt *big.Int
+	ctx      context.Context
+	wg       *sync.WaitGroup
+	root     common.Address
+	TxPool   txpool.TxPool
+	gasLimit uint64
 	// gasLimit GasLimiter
-	// delay    Delayer
+	delay uint
 	// Signer types.Signer
 	database   ethdb.Database   // In memory database to store our testing data
 	blockchain *core.BlockChain // Ethereum blockchain to handle the consensus
@@ -52,6 +51,7 @@ type Thereum struct {
 	config *params.ChainConfig
 }
 
+// New using a config and root signing address to make a new Thereum blockchain
 func New(config *Config, root common.Address) (*Thereum, error) {
 	// init the configured db
 	db := config.DB()
@@ -72,10 +72,12 @@ func New(config *Config, root common.Address) (*Thereum, error) {
 		database:   db,
 		blockchain: bc,
 		root:       root,
-		gasLimt:    big.NewInt(10485760), // TODO: config and make more flexible
+		gasLimit:   config.GenesisConfig.GasLimit, // TODO: config and make more flexible
+		delay:      config.Delay,
 	}, nil
 }
 
+// Run starts issuing new blocks using transactions in the transaction pool
 func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 	defer t.Shutdown(wg)
 	for {
@@ -83,7 +85,7 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 		case <-ctx.Done():
 			return
 		default:
-			// TODO: this is fugly
+			// TODO: 1)this is fugly 2) add custom delay 3) add ability to pause
 			// create a new block using existing transaction in the pool
 			t.mu.Lock()
 			block, state := t.NewPendingBlock()
@@ -91,27 +93,9 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 			t.latestState = state
 			t.Commit(block)
 			t.mu.Unlock()
-			time.Sleep(time.Millisecond * 50)
+			time.Sleep(time.Millisecond * t.delay)
 		}
 	}
-}
-
-// BatchTxs will add the max number of transaction to the provided block.
-func (t *Thereum) BatchTxs() []*types.Transaction {
-	// fetch the number a transactions, until all of the gas is used
-	var txs []*types.Transaction
-	for gas := new(big.Int); gas.Cmp(t.gasLimt) < 0; {
-		tx, has := t.TxPool.Next()
-		if tx == nil {
-			continue
-		}
-		if !has {
-			break
-		}
-		gas.Add(gas, tx.Cost())
-		txs = append(txs, tx)
-	}
-	return txs
 }
 
 // NewPendingBlock mints a new block, filling it with transactions from the transaction pool
@@ -124,7 +108,7 @@ func (t *Thereum) NewPendingBlock() (*types.Block, *state.StateDB) {
 		1,
 		func(i int, b *core.BlockGen) {
 			b.SetCoinbase(t.root)
-			txs := t.BatchTxs()
+			txs := t.TxPool.Batch(t.gasLimit)
 			for _, tx := range txs {
 				b.AddTxWithChain(t.blockchain, tx)
 			}
@@ -145,29 +129,23 @@ func (t *Thereum) Commit(block *types.Block) {
 	return
 }
 
-func (t *Thereum) Start() {
-
-}
-
-func (t *Thereum) Shutdown(wg *sync.WaitGroup) {
-	defer wg.Done()
-}
+// validate the tx before insertion into the TxPool
 
 // // validateTx checks whether a transaction is valid according to the consensus
 // // rules and adheres to some heuristic limits of the local node (price and size).
 // func (t *Thereum) validateTx(tx *types.Transaction, local bool) error {
 // 	// Reject transactions over defined size to prevent DOS attacks
 // 	if uint64(tx.Size()) > txMaxSize {
-// 		return ErrOversizedData
+// 		return errors.New("invalid transaction: too large")
 // 	}
 // 	// Transactions can't be negative. This may never happen using RLP decoded
 // 	// transactions but may occur if you create a transaction using the RPC.
 // 	if tx.Value().Sign() < 0 {
-// 		return ErrNegativeValue
+// 		return errors.New("invalid transaction: negative value")
 // 	}
 // 	// Ensure the transaction doesn't exceed the current block limit gas.
-// 	if t.currentMaxGas < tx.Gas() {
-// 		return ErrGasLimit
+// 	if t.blockchain.GasLimit() < tx.Gas() {
+// 		return errors.New("invalid transaction: gas limit broken")
 // 	}
 // 	// Make sure the transaction is signed properly
 // 	from, err := types.Sender(pool.signer, tx)
@@ -198,3 +176,7 @@ func (t *Thereum) Shutdown(wg *sync.WaitGroup) {
 // 	}
 // 	return nil
 // }
+
+func (t *Thereum) Shutdown(wg *sync.WaitGroup) {
+	defer wg.Done()
+}

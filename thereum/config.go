@@ -11,11 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// Config contains the standard variables for creating a new Thereum chain/node
 type Config struct {
 	InMemory      bool              `json:"in_memory"`
 	GenesisConfig *core.Genesis     `json:"genesis"`
 	Allocation    map[string]string `json:"allocation"` // "Name": "100000000000000000"
-	GasLimit      string            `json:"gas_limit"`
+	GasLimit      uint64            `json:"gas_limit"`
 	Delay         uint
 }
 
@@ -39,8 +40,8 @@ func (c Config) GasLimiter() GasLimiter {
 }
 
 // Genesis issues a new genesis configuration specified in the config
-func (c Config) Genesis() (core.Genesis, Accounts, error) {
-	var out core.Genesis
+func (c Config) Genesis() (*core.Genesis, Accounts, error) {
+	var out *core.Genesis
 	if c.GenesisConfig == nil {
 		out = defaultGenesis()
 	}
@@ -61,7 +62,7 @@ func (c Config) Genesis() (core.Genesis, Accounts, error) {
 	return out, accnts, err
 }
 
-func defaultGenesis() core.Genesis {
+func defaultGenesis() *core.Genesis {
 	alloc := core.GenesisAlloc(
 		make(map[common.Address]core.GenesisAccount),
 	)
@@ -71,19 +72,22 @@ func defaultGenesis() core.Genesis {
 		Alloc:      alloc,
 		Difficulty: new(big.Int).SetInt64(1),
 	}
-	return genesis
+	return &genesis
 }
 
-// func readAllocation(in map[string]string) (map[string]*big.Int, error) {
-// 	out := make(map[string]*big.Int)
-// 	var err error
-// 	for name, bal := range in {
-// 		nbal, nerr := new(big.Int).String(bal)
-// 		if nerr != nil {
-// 			err = nerr
-// 			continue
-// 		}
-// 		out[name] = nbal
-// 	}
-// 	return out, err
-// }
+func defaultConfig() Config {
+	return Config{
+		InMemory:      true,
+		GenesisConfig: defaultGenesis(),
+		Allocation: map[string]string{
+			"Alice":  "10000000000000000000",
+			"Bob":    "10000000000000000000",
+			"Celine": "10000000000000000000",
+			"Dobby":  "10000000000000000000",
+			"Erin":   "10000000000000000000",
+			"Frank":  "10000000000000000000",
+		},
+		GasLimit: 10485760,
+		Delay:    100,
+	}
+}

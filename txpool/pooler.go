@@ -10,7 +10,7 @@ import (
 
 // Pooler descibes the methods expected by Thereum to interact with a pool of transactions.
 type Pooler interface {
-	Next() (*types.Transaction, bool)
+	Batch(limit uint64) []*types.Transaction
 	Insert(author common.Address, tx *types.Transaction)
 }
 
@@ -31,6 +31,7 @@ type txID struct {
 	address  common.Address
 	nonce    uint64
 	gasPrice *big.Int
+	gasUsed  uint64
 	valid    bool
 }
 
@@ -78,7 +79,7 @@ func (pool *TxPool) Next() (*types.Transaction, bool) {
 // Transactions should be verified before insertion.
 func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) {
 	nonce := tx.Nonce()
-	id := &txID{address: author, nonce: nonce, gasPrice: tx.GasPrice()}
+	id := &txID{address: author, nonce: nonce, gasPrice: tx.GasPrice(), gasUsed: tx.Gas()}
 
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
@@ -113,6 +114,33 @@ func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) {
 	// put the transaction into the ordered set
 	place(pool.Order, id, 0, len(pool.Order)-1)
 	return
+}
+
+// Batch returns the next set of transactions based on the provided limit
+func (pool *TxPool) Batch(limit uint64) []*types.Transaction {
+	var out []*types.Transaction
+	var used uint64
+	for {
+		if len(pool.Order) == 0 {
+			break
+		}
+		id := pool.Order[len(pool.Order)-1]
+		used = used + id.gasUsed
+		// ensure that the limit is not reached
+		if used > limit {
+			break
+		}
+		// get the next transactions
+		tx, ok := pool.Next()
+		if !ok {
+			break
+		}
+		if tx == nil {
+			continue
+		}
+		out = append(out, tx)
+	}
+	return out
 }
 
 // place inserts a transaction id in order, sorted by gas price
