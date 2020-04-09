@@ -9,17 +9,21 @@ import (
 )
 
 // Pooler descibes the methods expected by Thereum to interact with a pool of transactions.
+// Note: Pooler is currently unused, but could replace TxPool
 type Pooler interface {
+	// Batch returns some number of txs whose total gas cost is less than or equal to limit
 	Batch(limit uint64) []*types.Transaction
+	// Insert adds the transaction to the pool
 	Insert(author common.Address, tx *types.Transaction)
 }
 
 // TxPool maintains a queue of transactions sorted by gas price
 type TxPool struct {
 	Pool         map[common.Address]map[uint64]setTx
-	Order        []*txID
+	Order        []*txID // Order maintains
 	mu           sync.RWMutex
-	invalidCount int
+	invalidCount int // invalidCount keeps track of the number of replaced transactions
+	maxSize      int // maxSize specs the max number of txs in the pool
 }
 
 type setTx struct {
@@ -45,7 +49,7 @@ func New() *TxPool {
 // Next pops and returns the highest gas price transaction, along with
 // a bool determining if there are any transactions left. nil txs are
 // returned for non-existant and invalid transaction that have yet to
-// be culled.
+// be cleaned.
 func (pool *TxPool) Next() (*types.Transaction, bool) {
 	if len(pool.Order) == 0 {
 		return nil, false
@@ -93,11 +97,11 @@ func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) {
 		// mark the old transaction as invalid
 		oldtx.txID.valid = false
 
-		// count invalid txs to make sure we don't call cull too often
+		// count invalid txs to make sure we don't call clean too often
 		pool.invalidCount++
 
-		if pool.invalidCount > 100 {
-			cull(pool.Order)
+		if pool.invalidCount > 00 {
+			clean(pool.Order)
 			pool.invalidCount = 0
 		}
 	}
@@ -143,6 +147,11 @@ func (pool *TxPool) Batch(limit uint64) []*types.Transaction {
 	return out
 }
 
+// cull removes the lowest price txs from the pool
+func (pool *TxPool) cull() {
+
+}
+
 // place inserts a transaction id in order, sorted by gas price
 func place(s []*txID, n *txID, head, tail int) {
 	diff := tail - head
@@ -171,7 +180,7 @@ func place(s []*txID, n *txID, head, tail int) {
 	return
 }
 
-func cull(s []*txID) {
+func clean(s []*txID) {
 	for i, id := range s {
 		if !id.valid {
 			sliceDelete(s, i)
