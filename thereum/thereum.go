@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -49,13 +48,13 @@ type Thereum struct {
 	latestBlock *types.Block   // pending block
 	latestState *state.StateDB // pending state
 
-	events *filters.EventSystem // Event system for filtering log events live
+	Events *filters.EventSystem // Event system for filtering logs and events
 
 	config *params.ChainConfig
 }
 
 // New using a config and root signing address to make a new Thereum blockchain
-func New(config *Config, root common.Address) (*Thereum, error) {
+func New(config Config, root common.Address) (*Thereum, error) {
 	// init the configured db
 	db := config.DB()
 	// delay := config.Delayer()
@@ -65,12 +64,14 @@ func New(config *Config, root common.Address) (*Thereum, error) {
 	if err != nil {
 		return nil, err
 	}
-	genesis.MustCommit(db)
-	bc, _ := core.NewBlockChain(db, nil, genesis.Config, ethash.NewFaker(), vm.Config{}, nil)
+	root = accounts["root"].Address
+	genBlock := genesis.MustCommit(db)
+
+	bc, _ := core.NewBlockChain(db, nil, params.AllEthashProtocolChanges, ethash.NewFaker(), vm.Config{}, nil)
 	for _, acc := range accounts {
-		fmt.Printf("%s\t\t%s\t%s\n", acc.Name, acc.Address, acc.Balance)
+		fmt.Printf("%s\t\t%s\t%s\n", acc.Name, acc.Address.Hex(), acc.Balance.String())
 	}
-	return &Thereum{
+	t := &Thereum{
 		TxPool:     txpool.New(),
 		database:   db,
 		blockchain: bc,
@@ -78,7 +79,10 @@ func New(config *Config, root common.Address) (*Thereum, error) {
 		root:       root,
 		gasLimit:   config.GenesisConfig.GasLimit, // TODO: config and make more flexible
 		delay:      config.Delay,
-	}, nil
+		Events:     filters.NewEventSystem(&filterBackend{db: db, bc: bc}, false),
+	}
+	t.latestBlock = genBlock
+	return t, nil
 }
 
 // Run starts issuing new blocks using transactions in the transaction pool
@@ -90,7 +94,7 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		default:
 			t.Commit()
-			time.Sleep(time.Millisecond * time.Duration(t.delay))
+			// time.Sleep(time.Millisecond * time.Duration(t.delay))
 		}
 	}
 }
@@ -106,10 +110,12 @@ func (t *Thereum) Commit() {
 	t.latestState = state
 	// add optional delay before adding block to simulate pending state
 	t.appendBlock(block)
+
 }
 
 // nextBlock mints a new block, filling it with transactions from the transaction pool
 func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
+	// make new blocks using the transaction pool
 	blocks, _ := core.GenerateChain(
 		t.config,
 		t.blockchain.CurrentBlock(),
@@ -119,7 +125,9 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 		func(i int, b *core.BlockGen) {
 			b.SetCoinbase(t.root)
 			txs := t.TxPool.Batch(t.gasLimit)
+
 			for _, tx := range txs {
+
 				b.AddTxWithChain(t.blockchain, tx)
 			}
 		},
@@ -127,7 +135,9 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 	statedb, _ := t.blockchain.State()
 
 	freshBlock := blocks[0]
+
 	freshState, _ := state.New(freshBlock.Root(), statedb.Database())
+
 	return freshBlock, freshState
 }
 
@@ -210,6 +220,10 @@ func (t *Thereum) LatestBlock() *types.Block {
 func (t *Thereum) Shutdown(wg *sync.WaitGroup) {
 	defer wg.Done()
 	t.blockchain.Stop()
+}
+
+func (t *Thereum) SubscribeNewhead(ctx context.Context, heads chan<- *types.Header) {
+
 }
 
 const (
