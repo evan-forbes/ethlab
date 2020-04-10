@@ -65,6 +65,7 @@ func (a *Account) Sign(tx *types.Transaction) (*types.Transaction, error) {
 func NewAccount(name string, bal *big.Int) (*Account, error) {
 	priv, err := crypto.GenerateKey()
 	if err != nil {
+		fmt.Println("COULD NOT GENERATE PRIVATE KEY FOR: ", name)
 		return nil, err
 	}
 

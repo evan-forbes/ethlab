@@ -2,6 +2,7 @@ package thereum
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,10 +15,14 @@ import (
 // Config contains the standard variables for creating a new Thereum chain/node
 type Config struct {
 	InMemory      bool              `json:"in_memory"`
-	GenesisConfig *core.Genesis     `json:"genesis"`
+	GenesisConfig core.Genesis      `json:"genesis"`
 	Allocation    map[string]string `json:"allocation"` // "Name": "100000000000000000"
 	GasLimit      uint64            `json:"gas_limit"`
 	Delay         uint
+	Host          string `json:"host"`
+	Port          uint   `json:"port"`
+	WSHost        string `json:"ws_host"`
+	WSPort        uint   `json:"ws_port"`
 }
 
 // DB returns the proper database specified by the config
@@ -40,11 +45,11 @@ func (c Config) DB() ethdb.Database {
 // }
 
 // Genesis issues a new genesis configuration specified in the config
-func (c Config) Genesis() (*core.Genesis, Accounts, error) {
-	var out *core.Genesis
-	if c.GenesisConfig == nil {
-		out = defaultGenesis()
-	}
+func (c Config) Genesis() (core.Genesis, Accounts, error) {
+	var out core.Genesis
+	// if c.GenesisConfig == nil {
+	// 	out = defaultGenesis()
+	// }
 	accnts := make(Accounts)
 	var err error
 	for name, sbal := range c.Allocation {
@@ -54,6 +59,7 @@ func (c Config) Genesis() (*core.Genesis, Accounts, error) {
 		}
 		acc, aerr := NewAccount(name, bal)
 		if aerr != nil {
+			fmt.Println("problem making new account for", name, bal.String(), aerr)
 			err = aerr
 		}
 		accnts[name] = acc
@@ -62,7 +68,7 @@ func (c Config) Genesis() (*core.Genesis, Accounts, error) {
 	return out, accnts, err
 }
 
-func defaultGenesis() *core.Genesis {
+func defaultGenesis() core.Genesis {
 	alloc := core.GenesisAlloc(
 		make(map[common.Address]core.GenesisAccount),
 	)
@@ -72,7 +78,7 @@ func defaultGenesis() *core.Genesis {
 		Alloc:      alloc,
 		Difficulty: new(big.Int).SetInt64(1),
 	}
-	return &genesis
+	return genesis
 }
 
 func defaultConfig() Config {
