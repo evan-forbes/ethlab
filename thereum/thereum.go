@@ -25,7 +25,7 @@ import (
 
 /*
 so far the appears to be
-- incorporate txPool into something similar to the simulated backend.
+- incorporate txpool into something similar to the simulated backend.
 - add auto run
 */
 
@@ -33,7 +33,7 @@ type Thereum struct {
 	ctx      context.Context
 	wg       *sync.WaitGroup
 	root     common.Address
-	TxPool   *txpool.TxPool
+	txpool   *txpool.TxPool
 	gasLimit uint64
 	// gasLimit GasLimiter
 	delay      uint
@@ -48,7 +48,8 @@ type Thereum struct {
 	latestBlock *types.Block   // pending block
 	latestState *state.StateDB // pending state
 
-	Events *filters.EventSystem // Event system for filtering logs and events
+	Events   *filters.EventSystem // Event system for filtering logs and events
+	Accounts Accounts             // access to initial accounts specified in config.Allocations
 
 	config *params.ChainConfig
 }
@@ -72,7 +73,7 @@ func New(config Config, root common.Address) (*Thereum, error) {
 		fmt.Printf("%s\t\t%s\t%s\n", acc.Name, acc.Address.Hex(), acc.Balance.String())
 	}
 	t := &Thereum{
-		TxPool:     txpool.New(),
+		txpool:     txpool.New(),
 		database:   db,
 		blockchain: bc,
 		signer:     types.NewEIP155Signer(big.NewInt(1)),
@@ -80,6 +81,7 @@ func New(config Config, root common.Address) (*Thereum, error) {
 		gasLimit:   config.GenesisConfig.GasLimit, // TODO: config and make more flexible
 		delay:      config.Delay,
 		Events:     filters.NewEventSystem(&filterBackend{db: db, bc: bc}, false),
+		Accounts:   accounts,
 	}
 	t.latestBlock = genBlock
 	return t, nil
@@ -99,7 +101,7 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-// Commit creates a new block using existing transaction from the TxPool
+// Commit creates a new block using existing transaction from the txpool
 func (t *Thereum) Commit() {
 	// TODO: 1)this is fugly 2) add custom delay 3) add ability to pause
 	// create a new block using existing transaction in the pool
@@ -124,7 +126,7 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 		1,
 		func(i int, b *core.BlockGen) {
 			b.SetCoinbase(t.root)
-			txs := t.TxPool.Batch(t.gasLimit)
+			txs := t.txpool.Batch(t.gasLimit)
 
 			for _, tx := range txs {
 
@@ -150,14 +152,14 @@ func (t *Thereum) appendBlock(block *types.Block) {
 	return
 }
 
-// AddTx validates and inserts the transaction into the TxPool
+// AddTx validates and inserts the transaction into the txpool
 func (t *Thereum) AddTx(tx *types.Transaction) error {
 	// validate tx
 	from, err := t.validateTx(tx)
 	if err != nil {
 		return fmt.Errorf("could not validate transaction: %s", err)
 	}
-	t.TxPool.Insert(from, tx)
+	t.txpool.Insert(from, tx)
 	return nil
 }
 
