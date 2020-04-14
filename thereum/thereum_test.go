@@ -15,7 +15,6 @@ import (
 func setupThereum(t *testing.T) (*Thereum, *cmd.Manager) {
 	mngr := cmd.NewManager(context.Background(), nil)
 	go mngr.Listen()
-	heads := make(chan *types.Header)
 
 	eth, err := New(defaultConfig(), common.Address{})
 	if err != nil {
@@ -23,7 +22,7 @@ func setupThereum(t *testing.T) (*Thereum, *cmd.Manager) {
 	}
 	mngr.WG.Add(1)
 	go eth.Run(mngr.Ctx, mngr.WG)
-	return eth, mngr, nil
+	return eth, mngr
 }
 
 func TestBoot(t *testing.T) {
@@ -70,6 +69,7 @@ type ContractCaller interface {
 func TestSendEth(t *testing.T) {
 	eth, _ := setupThereum(t)
 	acc := eth.Accounts["root"]
+	// thereum must impl bind.Backend in order to plug into the rest of go-ethereum
 	acc.SendETH()
 }
 
