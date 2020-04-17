@@ -7,9 +7,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -31,6 +29,8 @@ so far the appears to be
 - add auto run
 */
 
+// Thereum contains and controls the processes needed to run a fast single node
+// PoA ethereum blockchain.
 type Thereum struct {
 	ctx      context.Context
 	wg       *sync.WaitGroup
@@ -226,48 +226,6 @@ func (t *Thereum) Shutdown(wg *sync.WaitGroup) {
 	t.blockchain.Stop()
 }
 
-// callContract implements common code between normal and pending contract calls.
-// state is modified during execution, make sure to copy it if necessary.
-func (t *Thereum) callContract(ctx context.Context, call ethereum.CallMsg, block *types.Block, statedb *state.StateDB) ([]byte, uint64, bool, error) {
-	// Ensure message is initialized properly.
-	if call.GasPrice == nil {
-		call.GasPrice = big.NewInt(1)
-	}
-	if call.Gas == 0 {
-		call.Gas = 50000000
-	}
-	if call.Value == nil {
-		call.Value = new(big.Int)
-	}
-	// Set infinite balance to the fake caller account.
-	from := statedb.GetOrNewStateObject(call.From)
-	from.SetBalance(math.MaxBig256)
-	// Execute the call.
-	msg := callmsg{call}
-
-	evmContext := core.NewEVMContext(msg, block.Header(), t.blockchain, nil)
-	// Create a new environment which holds all relevant information
-	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(evmContext, statedb, params.AllEthashProtocolChanges, vm.Config{})
-	gaspool := new(core.GasPool).AddGas(math.MaxUint64)
-
-	return core.NewStateTransition(vmenv, msg, gaspool).TransitionDb()
-}
-
-// callmsg implements core.Message to allow passing it as a transaction simulator.
-type callmsg struct {
-	ethereum.CallMsg
-}
-
-func (m callmsg) From() common.Address { return m.CallMsg.From }
-func (m callmsg) Nonce() uint64        { return 0 }
-func (m callmsg) CheckNonce() bool     { return false }
-func (m callmsg) To() *common.Address  { return m.CallMsg.To }
-func (m callmsg) GasPrice() *big.Int   { return m.CallMsg.GasPrice }
-func (m callmsg) Gas() uint64          { return m.CallMsg.Gas }
-func (m callmsg) Value() *big.Int      { return m.CallMsg.Value }
-func (m callmsg) Data() []byte         { return m.CallMsg.Data }
-
 const (
 	// txSlotSize is used to calculate how many data slots a single transaction
 	// takes up based on its size. The slots are used as DoS protection, ensuring
@@ -281,3 +239,46 @@ const (
 	// to validate whether they fit into the pool or not.
 	txMaxSize = 2 * txSlotSize // 64KB, don't bump without EIP-2464 support
 )
+
+// This will only be needed if we want to support using as a native client
+// // callContract implements common code between normal and pending contract calls.
+// // state is modified during execution, make sure to copy it if necessary.
+// func (t *Thereum) callContract(ctx context.Context, call ethereum.CallMsg, block *types.Block, statedb *state.StateDB) ([]byte, uint64, bool, error) {
+// 	// Ensure message is initialized properly.
+// 	if call.GasPrice == nil {
+// 		call.GasPrice = big.NewInt(1)
+// 	}
+// 	if call.Gas == 0 {
+// 		call.Gas = 50000000
+// 	}
+// 	if call.Value == nil {
+// 		call.Value = new(big.Int)
+// 	}
+// 	// Set infinite balance to the fake caller account.
+// 	// from := statedb.GetOrNewStateObject(call.From)
+// 	// from.SetBalance(math.MaxBig256)
+// 	// Execute the call.
+// 	msg := callmsg{call}
+
+// 	evmContext := core.NewEVMContext(msg, block.Header(), t.blockchain, nil)
+// 	// Create a new environment which holds all relevant information
+// 	// about the transaction and calling mechanisms.
+// 	vmenv := vm.NewEVM(evmContext, statedb, params.AllEthashProtocolChanges, vm.Config{})
+// 	gaspool := new(core.GasPool).AddGas(math.MaxUint64)
+
+// 	return core.NewStateTransition(vmenv, msg, gaspool).TransitionDb()
+// }
+
+// // callmsg implements core.Message to allow passing it as a transaction simulator.
+// type callmsg struct {
+// 	ethereum.CallMsg
+// }
+
+// func (m callmsg) From() common.Address { return m.CallMsg.From }
+// func (m callmsg) Nonce() uint64        { return 0 }
+// func (m callmsg) CheckNonce() bool     { return false }
+// func (m callmsg) To() *common.Address  { return m.CallMsg.To }
+// func (m callmsg) GasPrice() *big.Int   { return m.CallMsg.GasPrice }
+// func (m callmsg) Gas() uint64          { return m.CallMsg.Gas }
+// func (m callmsg) Value() *big.Int      { return m.CallMsg.Value }
+// func (m callmsg) Data() []byte         { return m.CallMsg.Data }
