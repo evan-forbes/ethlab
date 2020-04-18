@@ -53,7 +53,7 @@ type Thereum struct {
 	Events   *filters.EventSystem // Event system for filtering logs and events
 	Accounts Accounts             // access to initial accounts specified in config.Allocations
 
-	config *params.ChainConfig
+	Config *params.ChainConfig
 }
 
 // New using a config and root signing address to make a new Thereum blockchain
@@ -70,7 +70,10 @@ func New(config Config, root Account) (*Thereum, error) {
 
 	genBlock := genesis.MustCommit(db)
 
-	bc, _ := core.NewBlockChain(db, nil, params.AllEthashProtocolChanges, ethash.NewFaker(), vm.Config{}, nil)
+	// just use this for now
+	t.Config = params.AllEthashProtocolChanges
+
+	bc, _ := core.NewBlockChain(db, nil, t.Config, ethash.NewFaker(), vm.Config{}, nil)
 	for _, acc := range accounts {
 		fmt.Printf("%s\t\t%s\t%s\n", acc.Name, acc.Address.Hex(), acc.Balance.String())
 	}
@@ -121,7 +124,7 @@ func (t *Thereum) Commit() {
 func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 	// make new blocks using the transaction pool
 	blocks, _ := core.GenerateChain(
-		t.config,
+		t.Config,
 		t.blockchain.CurrentBlock(),
 		ethash.NewFaker(),
 		t.database,
