@@ -13,14 +13,14 @@ type muxer struct {
 	mut    sync.RWMutex
 }
 
-type procedure func(*thereum.Thereum, rpcMessage) (rpcMessage, error)
+type procedure func(eth *thereum.Thereum, msg rpcMessage) (rpcMessage, error)
 
-func newMuxer(s *Server) *muxer {
+func newMuxer() *muxer {
 	return &muxer{
 		routes: map[string]procedure{
 			// add rpc methods here!
-			"":        nullProcedure,
-			"getLogs": getLogs,
+			"": nullProcedure,
+			// "getLogs": getLogs,
 		},
 	}
 }
@@ -32,7 +32,7 @@ func (m *muxer) Route(method string) (procedure, bool) {
 	return pro, has
 }
 
-func nullProcedure(*rpcMessage) (*rpcMessage, error) {
+func nullProcedure(eth *thereum.Thereum, msg rpcMessage) (rpcMessage, error) {
 	nullMessage := rpcMessage{
 		Version: "2.0",
 		ID:      60,
@@ -41,5 +41,5 @@ func nullProcedure(*rpcMessage) (*rpcMessage, error) {
 			Message: "specified method is not registered or supported",
 		},
 	}
-	return &nullMessage, nil
+	return nullMessage, nil
 }
