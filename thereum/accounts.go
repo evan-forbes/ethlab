@@ -31,34 +31,36 @@ func (a *Account) IncrNonce(plus *big.Int) {
 	a.TxOpts.Nonce.Add(a.TxOpts.Nonce, plus)
 }
 
-// SendETH signs a transaction and sends it to the client sending the provided amount of ETH
-// to the provided address
-func (a *Account) SendETH(client bind.ContractBackend, addr common.Address, amount *big.Int) (string, error) {
+// // SendETH signs a transaction and sends it to the client sending the provided amount of ETH
+// // to the provided address
+// func (a *Account) SendETH(client bind.ContractBackend, addr common.Address, amount *big.Int) (string, error) {
+// 	tx := types.NewTransaction(
+// 		a.TxOpts.Nonce.Uint64(), addr, amount,
+// 		a.TxOpts.GasLimit,
+// 		a.TxOpts.GasPrice,
+// 		[]byte{},
+// 	)
+// 	tx, err := a.Sign(tx)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	err = client.SendTransaction(context.Background(), tx)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	return tx.Hash().Hex(), nil
+// }
+
+func (a *Account) CreateSend(to common.Address, amount *big.Int) (*types.Transaction, error) {
 	tx := types.NewTransaction(
-		a.TxOpts.Nonce.Uint64(), addr, amount,
+		a.TxOpts.Nonce.Uint64(),
+		to,
+		amount,
 		a.TxOpts.GasLimit,
 		a.TxOpts.GasPrice,
 		[]byte{},
 	)
-	tx, err := a.Sign(tx)
-	if err != nil {
-		return "", err
-	}
-	err = client.SendTransaction(context.Background(), tx)
-	if err != nil {
-		return "", err
-	}
-	return tx.Hash().Hex(), nil
-}
-
-// Sign uses info in Account a to sign the provided transaction
-func (a *Account) Sign(tx *types.Transaction) (*types.Transaction, error) {
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(big.NewInt(1)), a.PrivKey)
-	if err != nil {
-		return nil, err
-	}
-	a.IncrNonce(nil)
-	return signedTx, nil
+	return a.Sign(tx)
 }
 
 // NewAccount issues a new account with a freshly generated private key
@@ -70,13 +72,25 @@ func NewAccount(name string, bal *big.Int) (*Account, error) {
 	}
 
 	topt := bind.NewKeyedTransactor(priv)
+	topt.Nonce = big.NewInt(1)
 
 	return &Account{
 		Name:    name,
 		Address: topt.From,
 		TxOpts:  topt,
 		Balance: bal,
+		PrivKey: priv,
 	}, nil
+}
+
+// Sign uses info in Account a to sign the provided transaction
+func (a *Account) Sign(tx *types.Transaction) (*types.Transaction, error) {
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(big.NewInt(1)), a.PrivKey)
+	if err != nil {
+		return nil, err
+	}
+	a.IncrNonce(big.NewInt(1))
+	return signedTx, nil
 }
 
 // Accounts connects simple names (or any string) to a transactor

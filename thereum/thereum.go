@@ -21,7 +21,7 @@ import (
 
 //
 
-// TODO: verify transactions before adding to the transactoin pool
+// TODO: have "linked" transactions in order to simulate proxy contract!
 
 /*
 so far the appears to be
@@ -34,7 +34,7 @@ so far the appears to be
 type Thereum struct {
 	ctx      context.Context
 	wg       *sync.WaitGroup
-	root     Account
+	root     *Account
 	txpool   *txpool.TxPool
 	gasLimit uint64
 	// gasLimit GasLimiter
@@ -57,7 +57,7 @@ type Thereum struct {
 }
 
 // New using a config and root signing address to make a new Thereum blockchain
-func New(config Config, root Account) (*Thereum, error) {
+func New(config Config, root *Account) (*Thereum, error) {
 	// init the configured db
 	db := config.DB()
 	// delay := config.Delayer()
@@ -70,10 +70,9 @@ func New(config Config, root Account) (*Thereum, error) {
 
 	genBlock := genesis.MustCommit(db)
 
-	// just use this for now
-	t.Config = params.AllEthashProtocolChanges
+	// just use this for no
 
-	bc, _ := core.NewBlockChain(db, nil, t.Config, ethash.NewFaker(), vm.Config{}, nil)
+	bc, _ := core.NewBlockChain(db, nil, params.AllEthashProtocolChanges, ethash.NewFaker(), vm.Config{}, nil)
 	for _, acc := range accounts {
 		fmt.Printf("%s\t\t%s\t%s\n", acc.Name, acc.Address.Hex(), acc.Balance.String())
 	}
@@ -89,6 +88,7 @@ func New(config Config, root Account) (*Thereum, error) {
 		Accounts:   accounts,
 	}
 	t.latestBlock = genBlock
+	t.Config = params.AllEthashProtocolChanges
 	return t, nil
 }
 
