@@ -5,8 +5,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/gorilla/mux"
 )
@@ -19,13 +24,23 @@ type Server struct {
 }
 
 func NewServer() *Server {
+	rtr := mux.NewRouter()
 	return &Server{
-		router: mux.NewRouter(),
+		Server: http.Server{
+			Addr:         "127.0.0.1:80000",
+			WriteTimeout: time.Second * 20,
+			ReadTimeout:  time.Second * 10,
+			IdleTimeout:  time.Second * 100,
+			Handler:      rtr,
+			// TLSConfig: ,
+		},
+		router: rtr,
 		muxer:  newMuxer(),
 	}
 	// set write timeouts
 }
 
+// rpcHandler returnes the function that handles all rpc requests
 func (s *Server) rpcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// add the header
@@ -49,7 +64,7 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)
 		if !has {
-			w.Write(rpcError(400, "method not supported"))
+			w.Write(rpcError(0, fmt.Sprintf("method %s not supported", req.Method)))
 			return
 		}
 		resp, err := pro(s.back, req)
@@ -99,8 +114,8 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 
 func run() {
 	srv := NewServer()
-	srv.router.HandleFunc("/", http.TimeoutHandleFunc(s.rpcHandler()))
-	http.ListenAndServe("127.0.0.1:8000", srv.router)
+	srv.router.HandleFunc("/", srv.rpcHandler())
+	srv.ListenAndServe()
 }
 
 // A value of this type can be a JSON-RPC request, notification, successful response or
@@ -109,7 +124,7 @@ type rpcMessage struct {
 	Version string          `json:"jsonrpc,omitempty"`
 	ID      int             `json:"id,omitempty"`
 	Method  string          `json:"method,omitempty"`
-	Params  json.RawMessage `json:"params,omitempty"`
+	Params  []interface{}   `json:"params,omitempty"`
 	Error   *jsonError      `json:"error,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
 }
@@ -124,5 +139,50 @@ func (s *Server) baseRPCMessage() rpcMessage {
 	return rpcMessage{
 		Version: "2.0",
 		ID:      int(s.back.Config.ChainID.Int64()),
+	}
+}
+
+// just json.Marshal a []interface for params
+// except for sending ETH?
+
+type sendETHrpc struct {
+	From     common.Address
+	To       common.Address
+	Gas      uint64
+	GasPrice *big.Int
+	Value    *big.Int
+}
+
+type sendETHrpcJSONwrap struct {
+	From     string `json:"from,omitempty"`
+	To       string `json:"to"`
+	Gas      string `json:"gas"`
+	GasPrice string `json:"gasPrice"`
+	Value    string `json:"value"`
+}
+
+func (msg sendETHrpc) MarshalJSON() ([]byte, error) {
+	out := sendETHrpcJSONwrap{
+		From:     msg.From.Hex(),
+		To:       msg.To.Hex(),
+		Gas:      "0x" + strconv.FormatUint(msg.Gas, 16),
+		GasPrice: fmt.Sprintf("0x%x", msg.GasPrice),
+		Value:    fmt.Sprintf("0x%x", msg.Value),
+	}
+	fmt.Println(out)
+	return json.Marshal(out)
+}
+
+func txToRPC(tx *types.Transaction) *rpcMessage {
+	rpcParam := sendETHrpc{
+		To:       *tx.To(),
+		Gas:      tx.Gas(),
+		GasPrice: tx.GasPrice(),
+		Value:    tx.Value(),
+	}
+	return &rpcMessage{
+		Version: "2.0",
+		ID:      60,
+		Params:  []interface{}{rpcParam},
 	}
 }
