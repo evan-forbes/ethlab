@@ -20,7 +20,7 @@ func newMuxer() *muxer {
 		routes: map[string]procedure{
 			// add rpc methods here!
 			"": nullProcedure,
-			// "getLogs": getLogs,
+			// "eth_sendTransaction": getLogs,
 		},
 	}
 }
@@ -33,6 +33,18 @@ func (m *muxer) Route(method string) (procedure, bool) {
 }
 
 func nullProcedure(eth *thereum.Thereum, msg rpcMessage) (rpcMessage, error) {
+	nullMessage := rpcMessage{
+		Version: "2.0",
+		ID:      60,
+		Error: &jsonError{
+			Code:    999,
+			Message: "specified method is not registered or supported",
+		},
+	}
+	return nullMessage, nil
+}
+
+func sendETH(eth *thereum.Thereum, msg rpcMessage) (rpcMessage, error) {
 	nullMessage := rpcMessage{
 		Version: "2.0",
 		ID:      60,

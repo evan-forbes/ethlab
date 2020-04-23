@@ -1,13 +1,17 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/evan-forbes/ethlab/cmd"
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/matryer/is"
 )
@@ -25,6 +29,36 @@ import (
 // 	// fmt.Println("response", rsp)
 // 	time.Sleep(1 * time.Second)
 // }
+
+func TestServer(t *testing.T) {
+	mngr := cmd.NewManager(context.Background(), nil)
+	go mngr.Listen()
+
+	srvr := NewServer()
+	go func() {
+		t.Log(srvr.ListenAndServe())
+	}()
+	time.Sleep(time.Second * 3)
+	client, err := ethclient.Dial("http://127.0.0.1:8000")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(client.ChainID(mngr.Ctx))
+	// create signed tx
+	txs, _, err := genTxs(2, thereum.NewAccounts("alice", "bob"))
+	if err != nil {
+		t.Error(err)
+	}
+	for _, tx := range txs {
+		fmt.Println("attempting to send txs")
+		err := client.SendTransaction(mngr.Ctx, tx)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	fmt.Println("done")
+	<-mngr.Done()
+}
 
 func genTxs(count int, accs thereum.Accounts) ([]*types.Transaction, common.Address, error) {
 	sinkAccout, _ := thereum.NewAccount("sink", big.NewInt(0))

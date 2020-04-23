@@ -16,6 +16,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Server connects traditional ethereum clients to the thereum backend via
+// the standardized ethereum json rpc.
 type Server struct {
 	http.Server
 	router *mux.Router
@@ -23,11 +25,12 @@ type Server struct {
 	back   *thereum.Thereum
 }
 
+// NewServer issues a new server with the rpc handler already registered
 func NewServer() *Server {
 	rtr := mux.NewRouter()
-	return &Server{
+	srv := &Server{
 		Server: http.Server{
-			Addr:         "127.0.0.1:80000",
+			Addr:         "127.0.0.1:8000",
 			WriteTimeout: time.Second * 20,
 			ReadTimeout:  time.Second * 10,
 			IdleTimeout:  time.Second * 100,
@@ -37,6 +40,8 @@ func NewServer() *Server {
 		router: rtr,
 		muxer:  newMuxer(),
 	}
+	srv.router.HandleFunc("/", srv.rpcHandler())
+	return srv
 	// set write timeouts
 }
 
@@ -61,9 +66,11 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			w.Write(rpcError(500, fmt.Sprintf("could not unmarshal rpc message: %s", err)))
 			return
 		}
+		fmt.Println(req)
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)
 		if !has {
+			log.Println("no procedure for method: ", req.Method)
 			w.Write(rpcError(0, fmt.Sprintf("method %s not supported", req.Method)))
 			return
 		}
@@ -99,24 +106,18 @@ func rpcError(code int, msg string) []byte {
 	return out
 }
 
-func Handle(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("called handler: ", r.Method)
-	body, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
-	if err != nil {
-		fmt.Println("could not read body", err)
-		return
-	}
-	fmt.Println(string(body))
-	w.Header().Set("content-type", "application/json")
-	w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "result": {"message": "this is a reply"}}`))
-}
-
-func run() {
-	srv := NewServer()
-	srv.router.HandleFunc("/", srv.rpcHandler())
-	srv.ListenAndServe()
-}
+// func Handle(w http.ResponseWriter, r *http.Request) {
+// 	fmt.Println("called handler: ", r.Method)
+// 	body, err := ioutil.ReadAll(r.Body)
+// 	defer r.Body.Close()
+// 	if err != nil {
+// 		fmt.Println("could not read body", err)
+// 		return
+// 	}
+// 	fmt.Println(string(body))
+// 	w.Header().Set("content-type", "application/json")
+// 	w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "result": {"message": "this is a reply"}}`))
+// }
 
 // A value of this type can be a JSON-RPC request, notification, successful response or
 // error response. Which one it is depends on the fields.
@@ -142,8 +143,19 @@ func (s *Server) baseRPCMessage() rpcMessage {
 	}
 }
 
-// just json.Marshal a []interface for params
-// except for sending ETH?
+func txToRPC(tx *types.Transaction) *rpcMessage {
+	rpcParam := sendETHrpc{
+		To:       *tx.To(),
+		Gas:      tx.Gas(),
+		GasPrice: tx.GasPrice(),
+		Value:    tx.Value(),
+	}
+	return &rpcMessage{
+		Version: "2.0",
+		ID:      60,
+		Params:  []interface{}{rpcParam},
+	}
+}
 
 type sendETHrpc struct {
 	From     common.Address
@@ -171,18 +183,4 @@ func (msg sendETHrpc) MarshalJSON() ([]byte, error) {
 	}
 	fmt.Println(out)
 	return json.Marshal(out)
-}
-
-func txToRPC(tx *types.Transaction) *rpcMessage {
-	rpcParam := sendETHrpc{
-		To:       *tx.To(),
-		Gas:      tx.Gas(),
-		GasPrice: tx.GasPrice(),
-		Value:    tx.Value(),
-	}
-	return &rpcMessage{
-		Version: "2.0",
-		ID:      60,
-		Params:  []interface{}{rpcParam},
-	}
 }
