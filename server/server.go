@@ -26,11 +26,11 @@ type Server struct {
 }
 
 // NewServer issues a new server with the rpc handler already registered
-func NewServer() *Server {
+func NewServer(addr string) *Server {
 	rtr := mux.NewRouter()
 	srv := &Server{
 		Server: http.Server{
-			Addr:         "127.0.0.1:8000",
+			Addr:         addr,
 			WriteTimeout: time.Second * 20,
 			ReadTimeout:  time.Second * 10,
 			IdleTimeout:  time.Second * 100,
@@ -40,17 +40,19 @@ func NewServer() *Server {
 		router: rtr,
 		muxer:  newMuxer(),
 	}
+	// install the universal rpc handler to the router
 	srv.router.HandleFunc("/", srv.rpcHandler())
 	return srv
 	// set write timeouts
 }
 
-// rpcHandler returnes the function that handles all rpc requests
+// rpcHandler returns the http handler function that processes all rpc requests
 func (s *Server) rpcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// add the header
+		// add the header to the response
 		w.Header().Set("content-type", "application/json")
-		// read the body
+
+		// read the body of the request
 		body, err := ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
 		if err != nil {
@@ -58,7 +60,8 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			w.Write(resp)
 			return
 		}
-		// unmarshal the body
+
+		// unmarshal the rpc request
 		var req rpcMessage
 		err = json.Unmarshal(body, &req)
 		if err != nil {
@@ -66,7 +69,7 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			w.Write(rpcError(500, fmt.Sprintf("could not unmarshal rpc message: %s", err)))
 			return
 		}
-		fmt.Println(req)
+
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)
 		if !has {
@@ -77,13 +80,16 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 		resp, err := pro(s.back, req)
 		if err != nil {
 			w.Write(rpcError(500, fmt.Sprintf("error calling %s: %s", req.Method, err)))
+			return
 		}
-		// marshal the response
+
+		// marshal the processed response
 		out, err := json.Marshal(resp)
 		if err != nil {
 			log.Println(err)
 		}
-		// write the response to the body
+
+		// write the response to the client
 		_, err = w.Write(out)
 		if err != nil {
 			log.Println(err)

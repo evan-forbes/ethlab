@@ -34,7 +34,7 @@ func TestServer(t *testing.T) {
 	mngr := cmd.NewManager(context.Background(), nil)
 	go mngr.Listen()
 
-	srvr := NewServer()
+	srvr := NewServer("127.0.0.1:8000")
 	go func() {
 		t.Log(srvr.ListenAndServe())
 	}()
@@ -43,8 +43,7 @@ func TestServer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(client.ChainID(mngr.Ctx))
-	// create signed tx
+	// create signed txs
 	txs, _, err := genTxs(2, thereum.NewAccounts("alice", "bob"))
 	if err != nil {
 		t.Error(err)
@@ -60,6 +59,7 @@ func TestServer(t *testing.T) {
 	<-mngr.Done()
 }
 
+// generates transactions, all of which send 1 ETH to a freshly created 'sink' account
 func genTxs(count int, accs thereum.Accounts) ([]*types.Transaction, common.Address, error) {
 	sinkAccout, _ := thereum.NewAccount("sink", big.NewInt(0))
 	var i int
@@ -92,6 +92,7 @@ func TestTxMarshal(t *testing.T) {
 	}
 }
 
+// checks the MarshalJSON method for sendETHrpc
 func TestSendETHrpcMarshal(t *testing.T) {
 	is := is.New(t)
 	gsprc, ok := new(big.Int).SetString("10000000000000", 10)
@@ -115,4 +116,28 @@ func TestSendETHrpcMarshal(t *testing.T) {
 		t.Error(err)
 	}
 	is.Equal(string(result), expected)
+}
+
+type tj1 struct {
+	A string `json:"a"`
+	B string `json:"b"`
+	C int    `json:"c"`
+}
+
+type tj2 struct {
+	A string  `json:"a"`
+	B string  `json:"b"`
+	C float64 `json:"c"`
+}
+
+func TestSliceUnmarshal(t *testing.T) {
+	out := []interface{}{}
+	out = append(out, &tj1{})
+	out = append(out, &tj2{})
+	data := []byte(`[{"a": "cat", "b": "dog", "c": 42}, {"a": "cat", "b": "dog", "c": 42.42}]`)
+	err := json.Unmarshal(data, &out)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(out[0], "woooo", out[1])
 }
