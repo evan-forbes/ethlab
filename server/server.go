@@ -5,13 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/gorilla/mux"
 )
@@ -131,7 +127,7 @@ type rpcMessage struct {
 	Version string          `json:"jsonrpc,omitempty"`
 	ID      int             `json:"id,omitempty"`
 	Method  string          `json:"method,omitempty"`
-	Params  []interface{}   `json:"params,omitempty"`
+	Params  json.RawMessage `json:"params,omitempty"`
 	Error   *jsonError      `json:"error,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
 }
@@ -147,46 +143,4 @@ func (s *Server) baseRPCMessage() rpcMessage {
 		Version: "2.0",
 		ID:      int(s.back.Config.ChainID.Int64()),
 	}
-}
-
-func txToRPC(tx *types.Transaction) *rpcMessage {
-	rpcParam := sendETHrpc{
-		To:       *tx.To(),
-		Gas:      tx.Gas(),
-		GasPrice: tx.GasPrice(),
-		Value:    tx.Value(),
-	}
-	return &rpcMessage{
-		Version: "2.0",
-		ID:      60,
-		Params:  []interface{}{rpcParam},
-	}
-}
-
-type sendETHrpc struct {
-	From     common.Address
-	To       common.Address
-	Gas      uint64
-	GasPrice *big.Int
-	Value    *big.Int
-}
-
-type sendETHrpcJSONwrap struct {
-	From     string `json:"from,omitempty"`
-	To       string `json:"to"`
-	Gas      string `json:"gas"`
-	GasPrice string `json:"gasPrice"`
-	Value    string `json:"value"`
-}
-
-func (msg sendETHrpc) MarshalJSON() ([]byte, error) {
-	out := sendETHrpcJSONwrap{
-		From:     msg.From.Hex(),
-		To:       msg.To.Hex(),
-		Gas:      "0x" + strconv.FormatUint(msg.Gas, 16),
-		GasPrice: fmt.Sprintf("0x%x", msg.GasPrice),
-		Value:    fmt.Sprintf("0x%x", msg.Value),
-	}
-	fmt.Println(out)
-	return json.Marshal(out)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 	"testing"
 	"time"
 
@@ -90,6 +91,48 @@ func TestTxMarshal(t *testing.T) {
 		}
 		fmt.Println(string(j))
 	}
+}
+
+func txToRPC(tx *types.Transaction) *rpcMessage {
+	rpcParam := sendETHrpc{
+		To:       *tx.To(),
+		Gas:      tx.Gas(),
+		GasPrice: tx.GasPrice(),
+		Value:    tx.Value(),
+	}
+	return &rpcMessage{
+		Version: "2.0",
+		ID:      60,
+		Params:  []interface{}{rpcParam},
+	}
+}
+
+type sendETHrpc struct {
+	From     common.Address
+	To       common.Address
+	Gas      uint64
+	GasPrice *big.Int
+	Value    *big.Int
+}
+
+type sendETHrpcJSONwrap struct {
+	From     string `json:"from,omitempty"`
+	To       string `json:"to"`
+	Gas      string `json:"gas"`
+	GasPrice string `json:"gasPrice"`
+	Value    string `json:"value"`
+}
+
+func (msg sendETHrpc) MarshalJSON() ([]byte, error) {
+	out := sendETHrpcJSONwrap{
+		From:     msg.From.Hex(),
+		To:       msg.To.Hex(),
+		Gas:      "0x" + strconv.FormatUint(msg.Gas, 16),
+		GasPrice: fmt.Sprintf("0x%x", msg.GasPrice),
+		Value:    fmt.Sprintf("0x%x", msg.Value),
+	}
+	fmt.Println(out)
+	return json.Marshal(out)
 }
 
 // checks the MarshalJSON method for sendETHrpc

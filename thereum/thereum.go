@@ -35,7 +35,7 @@ type Thereum struct {
 	ctx      context.Context
 	wg       *sync.WaitGroup
 	root     *Account
-	txpool   *txpool.TxPool
+	TxPool   *txpool.TxPool
 	gasLimit uint64
 	// gasLimit GasLimiter
 	delay      uint
@@ -132,7 +132,7 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 		func(i int, b *core.BlockGen) {
 			b.SetCoinbase(t.root.Address)
 			// get the next set of highest paying transactions
-			txs := t.txpool.Batch(t.gasLimit)
+			txs := t.Txpool.Batch(t.gasLimit)
 			// add them to the new block.
 			for _, tx := range txs {
 				b.AddTxWithChain(t.blockchain, tx)
