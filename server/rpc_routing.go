@@ -2,12 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/evan-forbes/ethlab/thereum"
 )
 
@@ -18,24 +20,24 @@ type muxer struct {
 	mut    sync.RWMutex
 }
 
-type procedure func(eth *thereum.Thereum, msg rpcMessage) (*rpcMessage, error)
+type procedure func(eth *thereum.Thereum, msg rpcMessage) (rpcMessage, error)
 
 func newMuxer() *muxer {
 	return &muxer{
 		routes: map[string]procedure{
 			// add rpc methods here!
-			"":                       nullProcedure,
-			"eth_chainId":            nullProcedure,
-			"eth_protocolVersion":    nullProcedure,
-			"eth_gasPrice":           nullProcedure,
-			"eth_blockNumber":        nullProcedure,
-			"eth_getBalance":         nullProcedure,
-			"eth_getStorageAt":       nullProcedure,
-			"eth_sendTransaction":    nullProcedure,
+			"":                    nullProcedure,
+			"eth_chainId":         nullProcedure,
+			"eth_protocolVersion": nullProcedure,
+			"eth_gasPrice":        nullProcedure,
+			"eth_blockNumber":     nullProcedure,
+			"eth_getBalance":      nullProcedure,
+			"eth_getStorageAt":    nullProcedure,
+			// "eth_sendTransaction":    nullProcedure, // account management shouldn't really be a feature
+			"eth_sendRawTransaction": nullProcedure,
 			"eth_call":               nullProcedure,
 			"eth_getLogs":            nullProcedure,
 			"eth_getFilterLogs":      nullProcedure,
-			"eth_sendRawTransaction": sendETH,
 		},
 	}
 }
@@ -47,8 +49,12 @@ func (m *muxer) Route(method string) (procedure, bool) {
 	return pro, has
 }
 
-func nullProcedure(eth *thereum.Thereum, msg rpcMessage) (*rpcMessage, error) {
-	nullMessage := &rpcMessage{
+/////////////////////////////
+// 		Procedures
+///////////////////////////
+
+func nullProcedure(eth *thereum.Thereum, msg rpcMessage) (rpcMessage, error) {
+	nullMessage := rpcMessage{
 		Version: "2.0",
 		ID:      60,
 		Error: &jsonError{
@@ -68,17 +74,16 @@ type sendTxParams struct {
 	Data     string         `json:"data"`
 }
 
-type sendTxParamsJSON struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Gas      string `json:"gas"`
-	GasPrice string `json:"gasPrice"`
-	Value    string `json:"value"`
-	Data     string `json:"data"`
-}
-
 func (p *sendTxParams) UnmarshalJSON(in []byte) error {
-	var data sendTxParamsJSON
+	type params struct {
+		From     string `json:"from"`
+		To       string `json:"to"`
+		Gas      string `json:"gas"`
+		GasPrice string `json:"gasPrice"`
+		Value    string `json:"value"`
+		Data     string `json:"data"`
+	}
+	var data params
 	err := json.Unmarshal(in, &data)
 	if err != nil {
 		return err
@@ -98,35 +103,42 @@ func (p *sendTxParams) UnmarshalJSON(in []byte) error {
 	return nil
 }
 
-func (p *sendTxParams) MarshalJSON() ([]byte, error) {
-	var out []byte
-	return out, nil
-}
-
-func sendTx(eth *thereum.Thereum, msg rpcMessage) (*rpcMessage, error) {
-	out := &rpcMessage{
-		Version: "2.0",
-		ID:      60,
+func sendRawTx(eth *thereum.Thereum, msg rpcMessage) (rpcMessage, error) {
+	out := rpcMessage{Version: "2.0", ID: 60}
+	var tx types.Transaction
+	var hexTx []string
+	err := json.Unmarshal(msg.Params, &hexTx)
+	if err != nil {
+		return out, err
 	}
-	return out, nil
-}
-
-func chainID(eth *thereum.Thereum, msg rpcMessage) (*rpcMessage, error) {
-	out := &rpcMessage{
-		Version: "2.0",
-		ID:      60,
+	if len(hexTx) == 0 {
+		return out, errors.New("no parameters provided for raw transaction")
 	}
-
-	// parse rpc msg into tx
-	// maybe do some extra tx validation
-	// add tx to the pool
-
-	// sender, err := types.Sender(types.NewEIP155Signer(b.config.ChainID), tx)
-	// if err != nil {
-	// 	return out, fmt.Errorf("invalid transaction: %v", err)
-	// }
+	err = json.Unmarshal([]byte(hexTx[0]), &tx)
+	if err != nil {
+		return out, err
+	}
+	eth.TxPool.Insert(common.Address{}, &tx)
+	out.Result = []byte("0x000000000000000000000000000000000000")
 	return out, nil
 }
+
+// func chainID(eth *thereum.Thereum, msg rpcMessage) (*rpcMessage, error) {
+// 	out := &rpcMessage{
+// 		Version: "2.0",
+// 		ID:      60,
+// 	}
+
+// 	// parse rpc msg into tx
+// 	// maybe do some extra tx validation
+// 	// add tx to the pool
+
+// 	// sender, err := types.Sender(types.NewEIP155Signer(b.config.ChainID), tx)
+// 	// if err != nil {
+// 	// 	return out, fmt.Errorf("invalid transaction: %v", err)
+// 	// }
+// 	return out, nil
+// }
 
 /*
 I need to figure out how I'm going to parse incoming parameters
