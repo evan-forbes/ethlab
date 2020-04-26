@@ -1,11 +1,13 @@
 package txpool
 
 import (
+	"encoding/hex"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/matryer/is"
 )
 
@@ -15,6 +17,27 @@ func placeSetup() []*txID {
 		s = append(s, &txID{gasPrice: new(big.Int).SetInt64(int64(i))})
 	}
 	return s
+}
+
+func TestInsert(t *testing.T) {
+	pool := New()
+	txBytes, err := hex.DecodeString("f85d01808094a52a2b202f7fc08fff1cb7d7bfab7f2248780b17018025a00208b2f26400f6147f6707ebd1af94b6b234cfa7bbbab34d12edcbe933a1cca5a0747c67a0d736882a02d9ecae83a0c10f3acc2ef5136fe4f4e2e4a4f8d1c184d5")
+	if err != nil {
+		t.Error(err)
+	}
+	var tx types.Transaction
+	err = rlp.DecodeBytes(txBytes, &tx)
+	if err != nil {
+		t.Error(err)
+	}
+	pool.Insert(common.Address{}, &tx)
+	regurge, has := pool.Next()
+	if !has {
+		t.Error("tx not inserted")
+	}
+	if regurge == nil {
+		t.Error("tx not returned")
+	}
 }
 
 func TestPlace(t *testing.T) {

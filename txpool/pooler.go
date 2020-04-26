@@ -42,7 +42,8 @@ type txID struct {
 // New inits a new TxPool
 func New() *TxPool {
 	return &TxPool{
-		Pool: make(map[common.Address]map[uint64]setTx),
+		Pool:    make(map[common.Address]map[uint64]setTx),
+		maxSize: 100000000000,
 	}
 }
 
@@ -83,11 +84,15 @@ func (pool *TxPool) Next() (*types.Transaction, bool) {
 // Transactions should be verified before insertion.
 func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) {
 	nonce := tx.Nonce()
-	id := &txID{address: author, nonce: nonce, gasPrice: tx.GasPrice(), gasUsed: tx.Gas()}
+	id := &txID{address: author, nonce: nonce, gasPrice: tx.GasPrice(), gasUsed: tx.Gas(), valid: true}
 
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 	// check to see if this transaction already exists
+	_, has := pool.Pool[author]
+	if !has {
+		pool.Pool[author] = make(map[uint64]setTx)
+	}
 	oldtx, has := pool.Pool[author][nonce]
 	if has {
 		// if the gas price is not larger, don't do anything
@@ -100,7 +105,7 @@ func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) {
 		// count invalid txs to make sure we don't call clean too often
 		pool.invalidCount++
 
-		if pool.invalidCount > 00 {
+		if pool.invalidCount > 100 {
 			clean(pool.Order)
 			pool.invalidCount = 0
 		}
