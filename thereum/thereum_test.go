@@ -20,7 +20,7 @@ func setupThereum(t *testing.T) (*Thereum, *cmd.Manager) {
 		t.Error(err)
 	}
 
-	eth, err := New(defaultConfig(), root)
+	eth, err := New(DefaultConfig(), root)
 	if err != nil {
 		t.Error(err)
 	}
@@ -36,7 +36,7 @@ func TestBoot(t *testing.T) {
 	heads := make(chan *types.Header)
 	root, err := NewAccount("root", big.NewInt(100))
 
-	eth, err := New(defaultConfig(), root)
+	eth, err := New(DefaultConfig(), root)
 	if err != nil {
 		t.Error(err)
 	}
@@ -92,10 +92,6 @@ func genTxs(count int, accs Accounts) ([]*types.Transaction, common.Address, err
 		i++
 	}
 	return out, sinkAccout.Address, nil
-}
-
-func TestSigner(t *testing.T) {
-
 }
 
 func TestCreateSend(t *testing.T) {

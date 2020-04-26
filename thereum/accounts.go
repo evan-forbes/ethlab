@@ -3,6 +3,7 @@ package thereum
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -72,7 +73,13 @@ func NewAccount(name string, bal *big.Int) (*Account, error) {
 	}
 
 	topt := bind.NewKeyedTransactor(priv)
-	topt.Nonce = big.NewInt(1)
+	topt.Nonce = big.NewInt(0)
+	topt.GasLimit = 21000
+	var ok bool
+	topt.GasPrice, ok = new(big.Int).SetString("10", 10)
+	if !ok {
+		return nil, errors.New("setting string")
+	}
 
 	return &Account{
 		Name:    name,

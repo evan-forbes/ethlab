@@ -81,7 +81,7 @@ func defaultGenesis() core.Genesis {
 	return genesis
 }
 
-func defaultConfig() Config {
+func DefaultConfig() Config {
 	return Config{
 		InMemory:      true,
 		GenesisConfig: defaultGenesis(),
