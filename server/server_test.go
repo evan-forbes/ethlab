@@ -50,7 +50,6 @@ func TestServer(t *testing.T) {
 		t.Error(err)
 	}
 	for _, tx := range txs {
-		fmt.Println("attempting to send txs")
 		err := client.SendTransaction(mngr.Ctx, tx)
 		if err != nil {
 			t.Error(err)
@@ -79,33 +78,33 @@ func genTxs(count int, accs thereum.Accounts) ([]*types.Transaction, common.Addr
 	return out, sinkAccout.Address, nil
 }
 
-func TestTxMarshal(t *testing.T) {
-	txs, _, err := genTxs(2, thereum.NewAccounts("alice", "bob"))
-	if err != nil {
-		t.Error(err)
-	}
-	for _, tx := range txs {
-		j, err := json.Marshal(txToRPC(tx))
-		if err != nil {
-			t.Error(err)
-		}
-		fmt.Println(string(j))
-	}
-}
+// func TestTxMarshal(t *testing.T) {
+// 	txs, _, err := genTxs(2, thereum.NewAccounts("alice", "bob"))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	for _, tx := range txs {
+// 		j, err := json.Marshal(txToRPC(tx))
+// 		if err != nil {
+// 			t.Error(err)
+// 		}
+// 		fmt.Println(string(j))
+// 	}
+// }
 
-func txToRPC(tx *types.Transaction) *rpcMessage {
-	rpcParam := sendETHrpc{
-		To:       *tx.To(),
-		Gas:      tx.Gas(),
-		GasPrice: tx.GasPrice(),
-		Value:    tx.Value(),
-	}
-	return &rpcMessage{
-		Version: "2.0",
-		ID:      60,
-		Params:  []interface{}{rpcParam},
-	}
-}
+// func txToRPC(tx *types.Transaction) *rpcMessage {
+// 	rpcParam := sendETHrpc{
+// 		To:       *tx.To(),
+// 		Gas:      tx.Gas(),
+// 		GasPrice: tx.GasPrice(),
+// 		Value:    tx.Value(),
+// 	}
+// 	return &rpcMessage{
+// 		Version: "2.0",
+// 		ID:      60,
+// 		Params:  []interface{}{rpcParam},
+// 	}
+// }
 
 type sendETHrpc struct {
 	From     common.Address
@@ -183,4 +182,55 @@ func TestSliceUnmarshal(t *testing.T) {
 		t.Error(err)
 	}
 	fmt.Println(out[0], "woooo", out[1])
+}
+
+func TestTxSend(t *testing.T) {
+	mngr := cmd.NewManager(context.Background(), nil)
+	go mngr.Listen()
+
+	eth, err := thereum.New(thereum.DefaultConfig(), nil)
+	if err != nil {
+		t.Error(err)
+	}
+	mngr.WG.Add(1)
+	go eth.Run(mngr.Ctx, mngr.WG)
+
+	srvr := NewServer("127.0.0.1:8000")
+	srvr.back = eth
+	go func() {
+		t.Log(srvr.ListenAndServe())
+	}()
+	time.Sleep(time.Second * 1)
+	client, err := ethclient.Dial("http://127.0.0.1:8000")
+	if err != nil {
+		t.Error(err)
+	}
+	alice := eth.Accounts["Alice"]
+	bob := eth.Accounts["Bob"]
+
+	oneETH, ok := new(big.Int).SetString("1000000000000000000", 10)
+	if !ok {
+		t.Error("could not set string")
+	}
+	tx, err := alice.CreateSend(bob.Address, oneETH)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = client.SendTransaction(mngr.Ctx, tx)
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second * 3)
+	receipt, err := client.TransactionReceipt(mngr.Ctx, tx.Hash())
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println("receipt", receipt)
+	<-mngr.Done()
+}
+
+func TestTxUnmarshal(t *testing.T) {
+	input := "0xf85d01808094a52a2b202f7fc08fff1cb7d7bfab7f2248780b17018025a00208b2f26400f6147f6707ebd1af94b6b234cfa7bbbab34d12edcbe933a1cca5a0747c67a0d736882a02d9ecae83a0c10f3acc2ef5136fe4f4e2e4a4f8d1c184d5"
+	fmt.Println(input)
 }

@@ -65,7 +65,7 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			w.Write(rpcError(500, fmt.Sprintf("could not unmarshal rpc message: %s", err)))
 			return
 		}
-
+		fmt.Println("method", req.Method)
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)
 		if !has {
@@ -73,7 +73,7 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			w.Write(rpcError(0, fmt.Sprintf("method %s not supported", req.Method)))
 			return
 		}
-		resp, err := pro(s.back, req)
+		resp, err := pro(s.back, &req)
 		if err != nil {
 			w.Write(rpcError(500, fmt.Sprintf("error calling %s: %s", req.Method, err)))
 			return
@@ -98,7 +98,7 @@ func rpcError(code int, msg string) []byte {
 	out, _ := json.Marshal(
 		rpcMessage{
 			Version: "2.0",
-			ID:      60,
+			ID:      1,
 			Error: &jsonError{
 				Code:    code,
 				Message: msg,
