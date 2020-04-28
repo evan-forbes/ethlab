@@ -22,7 +22,7 @@ type Server struct {
 }
 
 // NewServer issues a new server with the rpc handler already registered
-func NewServer(addr string) *Server {
+func NewServer(addr string, back *thereum.Thereum) *Server {
 	rtr := mux.NewRouter()
 	srv := &Server{
 		Server: http.Server{
@@ -38,11 +38,12 @@ func NewServer(addr string) *Server {
 	}
 	// install the universal rpc handler to the router
 	srv.router.HandleFunc("/", srv.rpcHandler())
+	srv.back = back
 	return srv
 	// set write timeouts
 }
 
-// rpcHandler returns the http handler function that processes all rpc requests
+// rpcHandler returns the main http handler function that processes all rpc requests
 func (s *Server) rpcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// add the header to the response
@@ -82,12 +83,14 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 		// marshal the processed response
 		out, err := json.Marshal(resp)
 		if err != nil {
+			w.Write(rpcError(500, fmt.Sprintf("interanl marshaling error calling %s: %s", req.Method, err)))
 			log.Println(err)
 		}
 
 		// write the response to the client
 		_, err = w.Write(out)
 		if err != nil {
+			w.Write(rpcError(500, fmt.Sprintf("interanl writing error calling %s: %s", req.Method, err)))
 			log.Println(err)
 			return
 		}

@@ -229,8 +229,3 @@ func TestTxSend(t *testing.T) {
 	fmt.Println("receipt", receipt)
 	<-mngr.Done()
 }
-
-func TestTxUnmarshal(t *testing.T) {
-	input := "0xf85d01808094a52a2b202f7fc08fff1cb7d7bfab7f2248780b17018025a00208b2f26400f6147f6707ebd1af94b6b234cfa7bbbab34d12edcbe933a1cca5a0747c67a0d736882a02d9ecae83a0c10f3acc2ef5136fe4f4e2e4a4f8d1c184d5"
-	fmt.Println(input)
-}
