@@ -78,6 +78,7 @@ func defaultGenesis() core.Genesis {
 		Alloc:      alloc,
 		Difficulty: new(big.Int).SetInt64(1),
 	}
+	genesis.Config.ChainID = big.NewInt(1)
 	return genesis
 }
 
