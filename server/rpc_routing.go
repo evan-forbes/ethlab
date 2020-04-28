@@ -113,7 +113,7 @@ func sendRawTx(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	out := &rpcMessage{
 		Version: "2.0",
 		ID:      int(eth.Config.ChainID.Int64()),
-		Result:  []byte(""),
+		Result:  tx.Hash().Bytes(),
 	}
 
 	return out, nil
