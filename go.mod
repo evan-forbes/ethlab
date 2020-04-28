@@ -9,4 +9,6 @@ require (
 	github.com/gorilla/rpc v1.2.0
 	github.com/matryer/is v1.3.0
 	github.com/sqs/goreturns v0.0.0-20181028201513-538ac6014518 // indirect
+	github.com/urfave/cli v1.22.1
+	github.com/urfave/cli/v2 v2.2.0
 )
