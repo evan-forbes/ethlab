@@ -52,6 +52,7 @@ func (a *Account) IncrNonce(plus *big.Int) {
 // 	return tx.Hash().Hex(), nil
 // }
 
+// CreateSend returns a signed eth transfer transaction from this account
 func (a *Account) CreateSend(to common.Address, amount *big.Int) (*types.Transaction, error) {
 	tx := types.NewTransaction(
 		a.TxOpts.Nonce.Uint64(),
