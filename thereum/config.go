@@ -1,9 +1,11 @@
 package thereum
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -23,6 +25,35 @@ type Config struct {
 	Port          uint   `json:"port"`
 	WSHost        string `json:"ws_host"`
 	WSPort        uint   `json:"ws_port"`
+}
+
+// LoadConfig attempts to load a config from a specified path,
+// if unsuccessful, it will look in the current directory. Finally,
+// if all fails, will use the default config.
+func LoadConfig(path string) (Config, error) {
+	out := DefaultConfig()
+	if path != "" {
+		// try to load the config from file
+		return configFromFile(path)
+	}
+	// look for a local file
+	_, err := os.Stat("config.json")
+	if os.IsNotExist(err) {
+		return out, nil
+	}
+	return configFromFile("config.json")
+}
+
+// configFromFile opens and decodes a config.json file
+func configFromFile(path string) (Config, error) {
+	var out Config
+	file, err := os.Open(path)
+	if err != nil {
+		return out, err
+	}
+	dec := json.NewDecoder(file)
+	err = dec.Decode(&out)
+	return out, err
 }
 
 // DB returns the proper database specified by the config

@@ -8,6 +8,17 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// TODO:
+/*
+ - port the abigen command from buddy
+	. alter to provide super easy muxing
+ - txpool that can link transactions
+ - pause and set break points for the chain
+ - option to stop the chain when nothing is happening
+ - txpool should reccomend a gas price? keep track of highest lowest median?
+ - test txpool with a massive number of txs
+*/
+
 func main() {
 	app := cli.NewApp()
 	app.EnableBashCompletion = true

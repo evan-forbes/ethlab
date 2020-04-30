@@ -40,7 +40,7 @@ type Thereum struct {
 	gasLimit uint64
 	// gasLimit GasLimiter
 	delay      uint
-	Signer     types.Signer
+	signer     types.Signer
 	database   ethdb.Database   // In memory database to store our testing data
 	blockchain *core.BlockChain // Ethereum blockchain to handle the consensus
 
@@ -54,7 +54,7 @@ type Thereum struct {
 	Events   *filters.EventSystem // Event system for filtering logs and events
 	Accounts Accounts             // access to initial accounts specified in config.Allocations
 
-	Config *params.ChainConfig
+	chainConfig *params.ChainConfig
 }
 
 // New using a config and root signing address to make a new Thereum blockchain
@@ -84,7 +84,7 @@ func New(config Config, root *Account) (*Thereum, error) {
 		TxPool:     txpool.New(),
 		database:   db,
 		blockchain: bc,
-		Signer:     types.NewEIP155Signer(big.NewInt(1)),
+		signer:     types.NewEIP155Signer(big.NewInt(1)),
 		root:       root,
 		gasLimit:   config.GenesisConfig.GasLimit, // TODO: config and make more flexible
 		delay:      config.Delay,
@@ -92,7 +92,7 @@ func New(config Config, root *Account) (*Thereum, error) {
 		Accounts:   accounts,
 	}
 	t.latestBlock = genBlock
-	t.Config = chainConfig
+	t.chainConfig = chainConfig
 	return t, nil
 }
 
@@ -132,7 +132,7 @@ func (t *Thereum) Commit() {
 func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 	// make new blocks using the transaction pool
 	blocks, _ := core.GenerateChain(
-		t.Config,
+		t.chainConfig,
 		t.blockchain.CurrentBlock(),
 		ethash.NewFaker(),
 		t.database,
@@ -173,7 +173,6 @@ func (t *Thereum) appendBlock(block *types.Block) {
 func (t *Thereum) AddTx(tx *types.Transaction) error {
 	// validate tx
 	from, err := t.validateTx(tx)
-	fmt.Println("adding tx: validation address: ", from.Hex(), err)
 	if err != nil {
 		return fmt.Errorf("could not validate transaction: %s", err)
 	}
@@ -198,7 +197,7 @@ func (t *Thereum) validateTx(tx *types.Transaction) (common.Address, error) {
 		return common.Address{}, errors.New("invalid transaction: gas limit broken")
 	}
 	// Make sure the transaction is signed properly
-	from, err := types.Sender(t.Signer, tx)
+	from, err := types.Sender(t.signer, tx)
 	if err != nil {
 		return from, errors.New("invalid transaction: signature could not be verified")
 	}
@@ -227,7 +226,7 @@ func (t *Thereum) TxReceipt(hash common.Hash) (*types.Receipt, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	receipt, _, _, _ := rawdb.ReadReceipt(t.database, hash, t.Config)
+	receipt, _, _, _ := rawdb.ReadReceipt(t.database, hash, t.chainConfig)
 	return receipt, nil
 }
 

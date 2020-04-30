@@ -31,33 +31,33 @@ import (
 // 	time.Sleep(1 * time.Second)
 // }
 
-func TestServer(t *testing.T) {
-	mngr := cmd.NewManager(context.Background(), nil)
-	go mngr.Listen()
+// func TestServer(t *testing.T) {
+// 	mngr := cmd.NewManager(context.Background(), nil)
+// 	go mngr.Listen()
 
-	srvr := NewServer("127.0.0.1:8000")
-	go func() {
-		t.Log(srvr.ListenAndServe())
-	}()
-	time.Sleep(time.Second * 3)
-	client, err := ethclient.Dial("http://127.0.0.1:8000")
-	if err != nil {
-		t.Error(err)
-	}
-	// create signed txs
-	txs, _, err := genTxs(2, thereum.NewAccounts("alice", "bob"))
-	if err != nil {
-		t.Error(err)
-	}
-	for _, tx := range txs {
-		err := client.SendTransaction(mngr.Ctx, tx)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-	fmt.Println("done")
-	<-mngr.Done()
-}
+// 	srvr := NewServer("127.0.0.1:8000", nil)
+// 	go func() {
+// 		t.Log(srvr.ListenAndServe())
+// 	}()
+// 	time.Sleep(time.Second * 3)
+// 	client, err := ethclient.Dial("http://127.0.0.1:8000")
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	// create signed txs
+// 	txs, _, err := genTxs(2, thereum.NewAccounts("alice", "bob"))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	for _, tx := range txs {
+// 		err := client.SendTransaction(mngr.Ctx, tx)
+// 		if err != nil {
+// 			t.Error(err)
+// 		}
+// 	}
+// 	fmt.Println("done")
+// 	<-mngr.Done()
+// }
 
 // generates transactions, all of which send 1 ETH to a freshly created 'sink' account
 func genTxs(count int, accs thereum.Accounts) ([]*types.Transaction, common.Address, error) {
@@ -195,7 +195,7 @@ func TestTxSend(t *testing.T) {
 	mngr.WG.Add(1)
 	go eth.Run(mngr.Ctx, mngr.WG)
 
-	srvr := NewServer("127.0.0.1:8000")
+	srvr := NewServer("127.0.0.1:8000", eth)
 	srvr.back = eth
 	go func() {
 		t.Log(srvr.ListenAndServe())

@@ -11,10 +11,10 @@ import (
 // Pooler descibes the methods expected by Thereum to interact with a pool of transactions.
 // Note: Pooler is currently unused, but could replace TxPool
 type Pooler interface {
-	// Batch returns some number of txs whose total gas cost is less than or equal to limit
-	Batch(limit uint64) []*types.Transaction
 	// Insert adds the transaction to the pool
 	Insert(author common.Address, tx *types.Transaction)
+	//
+	GasPrice(step int) (price uint64)
 }
 
 // TxPool maintains a queue of transactions sorted by gas price
@@ -150,11 +150,6 @@ func (pool *TxPool) Batch(limit uint64) []*types.Transaction {
 		out = append(out, tx)
 	}
 	return out
-}
-
-// cull removes the lowest price txs from the pool
-func (pool *TxPool) cull() {
-
 }
 
 // place inserts a transaction id in order, sorted by gas price
