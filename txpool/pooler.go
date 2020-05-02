@@ -1,6 +1,7 @@
 package txpool
 
 import (
+	"fmt"
 	"math/big"
 	"sync"
 
@@ -15,6 +16,7 @@ type Pooler interface {
 	Insert(author common.Address, tx *types.Transaction)
 	//
 	GasPrice(step int) (price uint64)
+	Next() ([]*types.Transaction, bool)
 }
 
 // TxPool maintains a queue of transactions sorted by gas price
@@ -121,7 +123,7 @@ func (pool *TxPool) Insert(author common.Address, tx *types.Transaction) {
 	}
 
 	// put the transaction into the ordered set
-	place(pool.Order, id, 0, len(pool.Order)-1)
+	place(&pool.Order, id, 0, len(pool.Order)-1)
 	return
 }
 
@@ -153,14 +155,25 @@ func (pool *TxPool) Batch(limit uint64) []*types.Transaction {
 }
 
 // place inserts a transaction id in order, sorted by gas price
-func place(s []*txID, n *txID, head, tail int) {
+func place(ps *[]*txID, n *txID, head, tail int) {
+	s := *ps
+	defer func() { ps = &s }()
 	diff := tail - head
+	fmt.Println("diff", diff)
 	// if our search has finished
+	if diff == 0 {
+		s = append(s, nil)
+		copy(s[head+2:], s[head+1:])
+		s[head+1] = n
+		fmt.Println("insertion", head, s)
+		return
+	}
 	if diff == 1 {
 		// insert in front of head
 		s = append(s, nil)
 		copy(s[head+2:], s[head+1:])
 		s[head+1] = n
+		fmt.Println("insertion", head, s)
 		return
 	}
 	delta := head + (diff / 2)
@@ -172,10 +185,10 @@ func place(s []*txID, n *txID, head, tail int) {
 		s[delta] = n
 	case -1:
 		// try againg above delta
-		place(s, n, delta, tail)
+		place(&s, n, delta, tail)
 	case 1:
 		// try again below delta
-		place(s, n, head, delta)
+		place(&s, n, head, delta)
 	}
 	return
 }

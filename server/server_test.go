@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/evan-forbes/ethlab/cmd"
 	"github.com/evan-forbes/ethlab/thereum"
@@ -59,24 +58,24 @@ import (
 // 	<-mngr.Done()
 // }
 
-// generates transactions, all of which send 1 ETH to a freshly created 'sink' account
-func genTxs(count int, accs thereum.Accounts) ([]*types.Transaction, common.Address, error) {
-	sinkAccout, _ := thereum.NewAccount("sink", big.NewInt(0))
-	var i int
-	var out []*types.Transaction
-	for _, acc := range accs {
-		if i >= count {
-			break
-		}
-		tx, err := acc.CreateSend(sinkAccout.Address, big.NewInt(1))
-		if err != nil {
-			return out, sinkAccout.Address, err
-		}
-		out = append(out, tx)
-		i++
-	}
-	return out, sinkAccout.Address, nil
-}
+// // generates transactions, all of which send 1 ETH to a freshly created 'sink' account
+// func genTxs(count int, accs thereum.Accounts) ([]*types.Transaction, common.Address, error) {
+// 	sinkAccout, _ := thereum.NewAccount("sink", big.NewInt(0))
+// 	var i int
+// 	var out []*types.Transaction
+// 	for _, acc := range accs {
+// 		if i >= count {
+// 			break
+// 		}
+// 		tx, err := acc.CreateSend(sinkAccout.Address, big.NewInt(1))
+// 		if err != nil {
+// 			return out, sinkAccout.Address, err
+// 		}
+// 		out = append(out, tx)
+// 		i++
+// 	}
+// 	return out, sinkAccout.Address, nil
+// }
 
 // func TestTxMarshal(t *testing.T) {
 // 	txs, _, err := genTxs(2, thereum.NewAccounts("alice", "bob"))

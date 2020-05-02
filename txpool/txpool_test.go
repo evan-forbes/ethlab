@@ -2,6 +2,7 @@ package txpool
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -45,26 +46,64 @@ func TestPlace(t *testing.T) {
 	// test case 1: insert 11
 	s := placeSetup()
 	n := &txID{gasPrice: new(big.Int).SetInt64(int64(11))}
-	place(s, n, 0, len(s)-1)
+	place(&s, n, 0, len(s)-1)
 	is.Equal(n.gasPrice.String(), s[6].gasPrice.String())
 
 	// test case 1: insert 3
 	s = placeSetup()
 	n = &txID{gasPrice: new(big.Int).SetInt64(int64(3))}
-	place(s, n, 0, len(s)-1)
+	place(&s, n, 0, len(s)-1)
 	is.Equal(n.gasPrice.String(), s[2].gasPrice.String())
 
 	// test case 2: insert 0
 	s = placeSetup()
 	n = &txID{gasPrice: new(big.Int).SetInt64(int64(0))}
-	place(s, n, 0, len(s)-1)
+	place(&s, n, 0, len(s)-1)
 	is.Equal(n.gasPrice.String(), s[1].gasPrice.String())
 	// is.Equal(n.gasPrice.String(), s[6].gasPrice.String())
 }
 
-func genTxs(author common.Address, nonce uint64) []*types.Transaction {
+func makeTransactions() []*types.Transaction {
+	raw := []string{
+		"f86d8202b28477359400825208944592d8f8d7b001e72cb26a73e4fa1806a51ac79d880de0b6b3a7640000802ca05924bde7ef10aa88db9c66dd4f5fb16b46dff2319b9968be983118b57bb50562a001b24b31010004f13d9a26b320845257a6cfc2bf819a3d55e3fc86263c5f0772",
+		"f85f8064825208946df11c6a93177f0a351daee93dfaca5177345ab2018025a04b652f9ff38fc9c8c5347da03c9fea7a8baf5ffa0c2c206402a38c70b32b157fa00e5e5ebac190c751f824f5f12fa7324e6cf7aee1022b65496bb2724d5eb8d190",
+		"f85f806f825213946df11c6a93177f0a351daee93dfaca5177345ab2018026a0c9807a2f71f0e41a45521ff9817e60b847d50cb4b7b694a378cc5378ba8b0b7ba0611acbfc055c0286dbfbfc27cd0811ae1d2371690a523424af419a698b2ef6c8",
+		"f85f807a82521e946df11c6a93177f0a351daee93dfaca5177345ab2018025a066df31e66fc372c0f7dd761e6779fd73454c98e06fed2932f5e1560fa59d8a49a02e637f85e1c15584e2deca936c7cdf7ad0b06400fd063d53cc65da5a65871c15",
+		"f860808185825229946df11c6a93177f0a351daee93dfaca5177345ab2018025a00d0eb76da0a820340bbd194ac6f544a64f9cc3ed0138dc2bd4a138b25fa6314ba03d5e8302f3dd1a8e0893f81dfa6f33ba9339168bba8c5655eb9118fa12773fd6",
+		"f860808190825234946df11c6a93177f0a351daee93dfaca5177345ab2018026a0f3d2f3202df2bd2f26c16b49d718822ef28c4e1f33c50079faedbcdf5d721c7aa06b773432c51c16fa4f86fba102250cff0cfa7621d272b8cd16f42779ed5cda26",
+		"f86080819b82523f946df11c6a93177f0a351daee93dfaca5177345ab2018026a0d784d15e469a15ffe57cad005151e339ad3588a8c14ca40dd8ebac94fb9aae33a04bb9b434b6a2ff4d4e786a88e98e03d8dbe1e2253dfe4117324359e3b1b28d60",
+	}
 	var out []*types.Transaction
+	for _, s := range raw {
+
+		txBytes, err := hex.DecodeString(s)
+		if err != nil {
+			fmt.Println("error during reading of transactions")
+		}
+		tx := new(types.Transaction)
+		rlp.DecodeBytes(txBytes, &tx)
+		out = append(out, tx)
+	}
 	return out
+}
+
+func TestLinkedInsert(t *testing.T) {
+	txs := makeTransactions()
+	signer := types.NewEIP155Signer(big.NewInt(1))
+	pool := NewLinkedPool()
+	from, err := signer.Sender(txs[3])
+	if err != nil {
+		t.Error(err)
+	}
+	from2, _ := signer.Sender(txs[4])
+	from3, _ := signer.Sender(txs[2])
+	pool.Insert(from, txs[3])
+	fmt.Println(txs[3].GasPrice().String())
+	fmt.Println(txs[4].GasPrice().String())
+	fmt.Println(pool.order)
+	pool.Insert(from2, txs[4])
+	pool.Insert(from3, txs[2])
+	fmt.Println(pool.order, len(pool.order))
 }
 
 func TestRemove(t *testing.T) {
@@ -72,13 +111,13 @@ func TestRemove(t *testing.T) {
 	// test case 1: insert 11
 	s := placeSetup()
 	n := &txID{gasPrice: new(big.Int).SetInt64(int64(2))}
-	place(s, n, 0, len(s)-1)
+	place(&s, n, 0, len(s)-1)
 	is.Equal(n.gasPrice.String(), s[6].gasPrice.String())
 
 	// test case 2: insert 0
 	s = placeSetup()
 	n = &txID{gasPrice: new(big.Int).SetInt64(int64(0))}
-	place(s, n, 0, len(s)-1)
+	place(&s, n, 0, len(s)-1)
 	is.Equal(n.gasPrice.String(), s[1].gasPrice.String())
 	// is.Equal(n.gasPrice.String(), s[6].gasPrice.String())
 }

@@ -108,7 +108,7 @@ type Accounts map[string]*Account
 func NewAccounts(names ...string) Accounts {
 	out := make(map[string]*Account)
 	for _, name := range names {
-		acc, err := NewAccount(name, new(big.Int))
+		acc, err := NewAccount(name, big.NewInt(100))
 		if err != nil {
 			return nil
 		}
