@@ -15,9 +15,30 @@ type Pooler interface {
 	// Insert adds the transaction to the pool
 	Insert(author common.Address, tx *types.Transaction)
 	//
-	GasPrice(step int) (price uint64)
+	GasPrice(step int) (prices []*big.Int)
 	Next() ([]*types.Transaction, bool)
 }
+
+// // Batch returns the max number of txs from the pool without overflowing the
+// // gas limit specified.
+// func Batch(pool Pooler, limit uint64) ([]*types.Transaction) {
+// 	var gasCount uint64
+// 	var out []*types.Transaction
+// 	for {
+// 		if gasCount >= limit {
+// 			break
+// 		}
+// 		set, has := pool.Next()
+// 		if !has {
+// 			break
+// 		}
+// 		gasCount = gasCount + set.ID.gasUsed
+// 		for _, tx := range set.Transactions {
+// 			out = append(out, tx)
+// 		}
+// 	}
+// 	return out
+// }
 
 // TxPool maintains a queue of transactions sorted by gas price
 type TxPool struct {

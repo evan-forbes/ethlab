@@ -103,10 +103,29 @@ func TestLinkedInsert(t *testing.T) {
 	lastPrice := big.NewInt(1000000000000000000)
 	// ensure that each tx is sorted properly
 	for i := 0; i < len(txs); i++ {
-		set, _ := pool.Next()
+		set, _ := pool.next()
 		is.True(set.ID.gasPrice.Cmp(lastPrice) < 0)
 		lastPrice = set.ID.gasPrice
 	}
+}
+
+func TestBatching(t *testing.T) {
+	// is := is.New(t)
+	txs := makeTransactions()
+	signer := types.NewEIP155Signer(big.NewInt(1))
+	pool := NewLinkedPool()
+	for _, tx := range txs {
+		from, err := signer.Sender(tx)
+		if err != nil {
+			t.Error(err)
+		}
+		pool.Insert(from, tx)
+	}
+	btxs := Batch(120000, pool)
+	bbtx := Batch(120000, pool)
+	fmt.Println(btxs)
+	fmt.Println(bbtx)
+
 }
 
 func TestRemove(t *testing.T) {

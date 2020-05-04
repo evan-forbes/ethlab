@@ -36,7 +36,7 @@ type Thereum struct {
 	ctx      context.Context
 	wg       *sync.WaitGroup
 	root     *Account
-	TxPool   *txpool.TxPool
+	txPool   *txpool.LinkedPool
 	gasLimit uint64
 	// gasLimit GasLimiter
 	delay      uint
@@ -81,7 +81,7 @@ func New(config Config, root *Account) (*Thereum, error) {
 		fmt.Printf("%s\t\t%s\t%s\n", acc.Name, acc.Address.Hex(), acc.Balance.String())
 	}
 	t := &Thereum{
-		TxPool:     txpool.New(),
+		txPool:     txpool.NewLinkedPool(),
 		database:   db,
 		blockchain: bc,
 		signer:     types.NewEIP155Signer(big.NewInt(1)),
@@ -140,7 +140,7 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 		func(i int, b *core.BlockGen) {
 			b.SetCoinbase(t.root.Address)
 			// get the next set of highest paying transactions
-			txs := t.TxPool.Batch(t.gasLimit)
+			txs := txpool.Batch(t.gasLimit, t.txPool)
 			// add them to the new block.
 			for _, tx := range txs {
 				b.AddTxWithChain(t.blockchain, tx)
@@ -176,7 +176,7 @@ func (t *Thereum) AddTx(tx *types.Transaction) error {
 	if err != nil {
 		return fmt.Errorf("could not validate transaction: %s", err)
 	}
-	t.TxPool.Insert(from, tx)
+	t.txPool.Insert(from, tx)
 	return nil
 }
 
@@ -222,6 +222,7 @@ func (t *Thereum) validateTx(tx *types.Transaction) (common.Address, error) {
 	return from, nil
 }
 
+// TxReceipt returns the receipt, if any, from a mined transaction's hash
 func (t *Thereum) TxReceipt(hash common.Hash) (*types.Receipt, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -230,6 +231,7 @@ func (t *Thereum) TxReceipt(hash common.Hash) (*types.Receipt, error) {
 	return receipt, nil
 }
 
+// LatestState returns the latest state
 func (t *Thereum) LatestState() *state.StateDB {
 	t.mu.Lock()
 	state := t.latestState
@@ -237,6 +239,7 @@ func (t *Thereum) LatestState() *state.StateDB {
 	return state
 }
 
+// LatestBlock returns the latest block. Not guarenteed to be final
 func (t *Thereum) LatestBlock() *types.Block {
 	t.mu.Lock()
 	block := t.latestBlock
@@ -244,6 +247,7 @@ func (t *Thereum) LatestBlock() *types.Block {
 	return block
 }
 
+// Shutdown begins the procedure to stop the Thereum blockchain
 func (t *Thereum) Shutdown(wg *sync.WaitGroup) {
 	defer wg.Done()
 	t.blockchain.Stop()

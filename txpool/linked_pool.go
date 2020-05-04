@@ -1,6 +1,7 @@
 package txpool
 
 import (
+	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -30,16 +31,18 @@ type LinkedPool struct {
 	order        []*txID // maintain gas price order
 	mu           sync.RWMutex
 	invalidCount int // invalidCount keeps track of the number of replaced transactions
+	signer       types.Signer
 }
 
 func NewLinkedPool() *LinkedPool {
 	return &LinkedPool{
-		pool: make(map[common.Address]map[uint64]txSet),
+		pool:   make(map[common.Address]map[uint64]txSet),
+		signer: types.NewEIP155Signer(big.NewInt(1)),
 	}
 }
 
-// Next retrieves the highest priced transaction/set of transactions
-func (pool *LinkedPool) Next() (txSet, bool) {
+// next retrieves the highest priced transaction/set of transactions
+func (pool *LinkedPool) next() (txSet, bool) {
 	if len(pool.order) == 0 {
 		return txSet{}, false
 	}
@@ -53,14 +56,14 @@ func (pool *LinkedPool) Next() (txSet, bool) {
 
 	if !nextID.valid {
 		// try again if the tx set has been marked
-		return pool.Next()
+		return pool.next()
 	}
 
 	// get the tx from the pool
 	set, has := pool.pool[nextID.address][nextID.nonce]
 	if !has {
 		// if a tx has somehow been removed from the pool but not from the order
-		return pool.Next()
+		return pool.next()
 	}
 
 	// remove the transaction from the pool
@@ -155,15 +158,22 @@ func Batch(gasLimit uint64, pool *LinkedPool) []*types.Transaction {
 	var gasCount uint64
 	var out []*types.Transaction
 	for {
-		if gasCount >= gasLimit {
-			break
-		}
-		set, has := pool.Next()
+		set, has := pool.next()
 		if !has {
 			break
 		}
-		gasCount = gasCount + set.ID.gasUsed
-		for _, tx := range set.Transactions {
+
+		for i, tx := range set.Transactions {
+			gasCount = gasCount + tx.Gas()
+			fmt.Println(gasCount)
+			if gasCount > gasLimit {
+				fmt.Println("first tx", set.Transactions)
+				set.Transactions = set.Transactions[i:]
+				fmt.Println("second txs", set.Transactions)
+				from, _ := pool.signer.Sender(tx)
+				pool.Insert(from, set.Transactions...)
+				return out
+			}
 			out = append(out, tx)
 		}
 	}
