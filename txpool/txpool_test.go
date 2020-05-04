@@ -65,7 +65,7 @@ func TestPlace(t *testing.T) {
 
 func makeTransactions() []*types.Transaction {
 	raw := []string{
-		"f86d8202b28477359400825208944592d8f8d7b001e72cb26a73e4fa1806a51ac79d880de0b6b3a7640000802ca05924bde7ef10aa88db9c66dd4f5fb16b46dff2319b9968be983118b57bb50562a001b24b31010004f13d9a26b320845257a6cfc2bf819a3d55e3fc86263c5f0772",
+		// "f86d8202b28477359400825208944592d8f8d7b001e72cb26a73e4fa1806a51ac79d880de0b6b3a7640000802ca05924bde7ef10aa88db9c66dd4f5fb16b46dff2319b9968be983118b57bb50562a001b24b31010004f13d9a26b320845257a6cfc2bf819a3d55e3fc86263c5f0772",
 		"f85f8064825208946df11c6a93177f0a351daee93dfaca5177345ab2018025a04b652f9ff38fc9c8c5347da03c9fea7a8baf5ffa0c2c206402a38c70b32b157fa00e5e5ebac190c751f824f5f12fa7324e6cf7aee1022b65496bb2724d5eb8d190",
 		"f85f806f825213946df11c6a93177f0a351daee93dfaca5177345ab2018026a0c9807a2f71f0e41a45521ff9817e60b847d50cb4b7b694a378cc5378ba8b0b7ba0611acbfc055c0286dbfbfc27cd0811ae1d2371690a523424af419a698b2ef6c8",
 		"f85f807a82521e946df11c6a93177f0a351daee93dfaca5177345ab2018025a066df31e66fc372c0f7dd761e6779fd73454c98e06fed2932f5e1560fa59d8a49a02e637f85e1c15584e2deca936c7cdf7ad0b06400fd063d53cc65da5a65871c15",
@@ -88,22 +88,25 @@ func makeTransactions() []*types.Transaction {
 }
 
 func TestLinkedInsert(t *testing.T) {
+	is := is.New(t)
 	txs := makeTransactions()
 	signer := types.NewEIP155Signer(big.NewInt(1))
 	pool := NewLinkedPool()
-	from, err := signer.Sender(txs[3])
-	if err != nil {
-		t.Error(err)
+	for _, tx := range txs {
+		from, err := signer.Sender(tx)
+		if err != nil {
+			t.Error(err)
+		}
+		pool.Insert(from, tx)
 	}
-	from2, _ := signer.Sender(txs[4])
-	from3, _ := signer.Sender(txs[2])
-	pool.Insert(from, txs[3])
-	fmt.Println(txs[3].GasPrice().String())
-	fmt.Println(txs[4].GasPrice().String())
-	fmt.Println(pool.order)
-	pool.Insert(from2, txs[4])
-	pool.Insert(from3, txs[2])
-	fmt.Println(pool.order, len(pool.order))
+	is.Equal(len(pool.order), len(txs))
+	lastPrice := big.NewInt(1000000000000000000)
+	// ensure that each tx is sorted properly
+	for i := 0; i < len(txs); i++ {
+		set, _ := pool.Next()
+		is.True(set.ID.gasPrice.Cmp(lastPrice) < 0)
+		lastPrice = set.ID.gasPrice
+	}
 }
 
 func TestRemove(t *testing.T) {

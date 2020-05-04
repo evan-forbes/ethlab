@@ -1,7 +1,6 @@
 package txpool
 
 import (
-	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -92,7 +91,6 @@ func (pool *LinkedPool) Insert(author common.Address, txs ...*types.Transaction)
 	// use nonce of the first tx.
 	nonce := txs[0].Nonce()
 	// form id
-	fmt.Println("gas price of:", gsprc, gslmt)
 	id := &txID{
 		address:  author,
 		nonce:    nonce,
@@ -144,8 +142,11 @@ func (pool *LinkedPool) Insert(author common.Address, txs ...*types.Transaction)
 
 	}
 
-	// put the transaction into the ordered set
-	search(pool.order, gsprc)
+	// insert the transaction into the ordered set
+	i := search(pool.order, gsprc)
+	pool.order = append(pool.order, nil)
+	copy(pool.order[i+1:], pool.order[i:])
+	pool.order[i] = id
 	return
 }
 
@@ -175,6 +176,10 @@ func search(order []*txID, price *big.Int) (n int) {
 	}
 	return sort.Search(len(order), sfunc)
 }
+
+// func insertOrder(s []*txID, i int, n *txID) {
+
+// }
 
 // RECYCLE BIN
 
