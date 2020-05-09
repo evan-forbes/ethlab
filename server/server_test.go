@@ -195,7 +195,6 @@ func TestTxSend(t *testing.T) {
 	go eth.Run(mngr.Ctx, mngr.WG)
 
 	srvr := NewServer("127.0.0.1:8000", eth)
-	srvr.back = eth
 	go func() {
 		t.Log(srvr.ListenAndServe())
 	}()
@@ -225,6 +224,6 @@ func TestTxSend(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println("receipt", receipt)
+	fmt.Printf("receipt: %+v\n", receipt)
 	<-mngr.Done()
 }

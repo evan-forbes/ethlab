@@ -3,54 +3,16 @@ package server
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/evan-forbes/ethlab/thereum"
+	"github.com/pkg/errors"
 )
-
-// muxer maps supported methods to their appropriate procedures.
-// thread safe.
-type muxer struct {
-	routes map[string]procedure
-	mut    sync.RWMutex
-}
-
-type procedure func(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error)
-
-func newMuxer() *muxer {
-	return &muxer{
-		routes: map[string]procedure{
-			// add rpc methods here!
-			"":                          nullProcedure,
-			"eth_chainId":               nullProcedure,
-			"eth_protocolVersion":       nullProcedure,
-			"eth_gasPrice":              nullProcedure,
-			"eth_blockNumber":           nullProcedure,
-			"eth_getBalance":            nullProcedure,
-			"eth_getStorageAt":          nullProcedure,
-			"eth_sendTransaction":       sendRawTx, // account management shouldn't really be a feature
-			"eth_sendRawTransaction":    sendRawTx,
-			"eth_getTransactionReceipt": getTxReceipt,
-			"eth_call":                  nullProcedure,
-			"eth_getLogs":               nullProcedure,
-			"eth_getFilterLogs":         nullProcedure,
-		},
-	}
-}
-
-func (m *muxer) Route(method string) (procedure, bool) {
-	m.mut.RLock()
-	defer m.mut.RUnlock()
-	pro, has := m.routes[method]
-	return pro, has
-}
 
 /////////////////////////////
 // 		Procedures
@@ -89,7 +51,6 @@ func sendRawTx(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	if len(hexTx) == 0 {
 		return nil, errors.New("no parameters provided for raw transaction")
 	}
-	fmt.Println(hexTx[0])
 	// unmarshal the hex bytes into a transaction
 	var tx types.Transaction
 	txBytes, err := hex.DecodeString(strings.Replace(hexTx[0], "0x", "", 1))
@@ -112,8 +73,8 @@ func sendRawTx(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	}
 	out := &rpcMessage{
 		Version: "2.0",
-		ID:      int(eth.Config.ChainID.Int64()),
-		Result:  tx.Hash().Bytes(),
+		ID:      1,
+		Result:  tx.Hash().Hex(),
 	}
 
 	return out, nil
@@ -128,7 +89,6 @@ func getTxReceipt(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("hexTx", hexTx[0])
 	// ensure that some data was passed throught the rpc msg
 	if len(hexTx) == 0 {
 		return nil, errors.New("no parameters provided for raw transaction")
@@ -138,20 +98,18 @@ func getTxReceipt(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	fmt.Println("hash", hash)
 	// fetch the receipt
 	receipt, err := eth.TxReceipt(hash)
-	fmt.Println("txr", err)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("internal receipt", receipt)
 	// marshal the result
-	res, err := json.Marshal(receipt)
+
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed getTxReceipt")
 	}
 	out := &rpcMessage{
 		Version: "2.0",
-		ID:      int(eth.Config.ChainID.Int64()),
-		Result:  res,
+		ID:      1,
+		Result:  receipt,
 	}
 	return out, nil
 }

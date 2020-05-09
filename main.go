@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/evan-forbes/ethlab/cmd"
 	"github.com/urfave/cli/v2"
 )
 
@@ -74,16 +73,14 @@ func main() {
 	// subcommands
 	app.Commands = []*cli.Command{
 		{
-			Name:   "abigen",
-			Usage:  "generate interface and mock friendly go bindings",
-			Action: cmd.ABIgen,
-			Flags:  abiFlags,
+			Name:  "abigen",
+			Usage: "generate go bindings for an abi",
+			Flags: abiFlags,
 		},
 		{
-			Name:   "boot",
-			Usage:  "start serving access to a configured blockchain",
-			Action: cmd.Boot,
-			Flags:  bootFlags,
+			Name:  "boot",
+			Usage: "start serving access to a configured blockchain",
+			Flags: bootFlags,
 		},
 	}
 

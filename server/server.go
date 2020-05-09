@@ -1,16 +1,23 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/gorilla/mux"
+	"golang.org/x/net/websocket"
 )
+
+////////////////////////////////
+// 		RPC Server
+//////////////////////////////
 
 // Server connects traditional ethereum clients to the thereum backend via
 // the standardized ethereum json rpc.
@@ -19,10 +26,11 @@ type Server struct {
 	router *mux.Router
 	muxer  *muxer
 	back   *thereum.Thereum
+	ctx    context.Context
 }
 
 // NewServer issues a new server with the rpc handler already registered
-func NewServer(addr string, back *thereum.Thereum) *Server {
+func NewServer(ctx context.Context, addr string, back *thereum.Thereum) *Server {
 	rtr := mux.NewRouter()
 	srv := &Server{
 		Server: http.Server{
@@ -35,6 +43,7 @@ func NewServer(addr string, back *thereum.Thereum) *Server {
 		},
 		router: rtr,
 		muxer:  newMuxer(),
+		ctx:    ctx,
 	}
 	// install the universal rpc handler to the router
 	srv.router.HandleFunc("/", srv.rpcHandler())
@@ -43,7 +52,7 @@ func NewServer(addr string, back *thereum.Thereum) *Server {
 	// set write timeouts
 }
 
-// rpcHandler returns the main http handler function that processes all rpc requests
+// rpcHandler returns the main http handler function that processes *all* rpc requests
 func (s *Server) rpcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// add the header to the response
@@ -67,6 +76,14 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			return
 		}
 		fmt.Println("method", req.Method)
+
+		// forward any pub/sub requests to the websocket handlere
+		// TODO: make this a seperate typical rpc procedure for the method 'eth_subscribe'
+		if req.Method == "eth_subscribe" {
+			s.wsHandler(w, r, &req)
+			return
+		}
+
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)
 		if !has {
@@ -85,6 +102,7 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 		if err != nil {
 			w.Write(rpcError(500, fmt.Sprintf("interanl marshaling error calling %s: %s", req.Method, err)))
 			log.Println(err)
+			log.Printf("failed to marshal response from %s procedure: %+v\n", req.Method, resp)
 		}
 
 		// write the response to the client
@@ -94,6 +112,84 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			log.Println(err)
 			return
 		}
+	}
+}
+
+////////////////////////////////
+// 	Routing Msg to Procedure
+//////////////////////////////
+
+// muxer maps supported methods to their appropriate procedures.
+// thread safe.
+type muxer struct {
+	routes map[string]procedure
+	mut    sync.RWMutex
+}
+
+type procedure func(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error)
+
+func newMuxer() *muxer {
+	return &muxer{
+		routes: map[string]procedure{
+			// add rpc methods here!
+			"":                          nullProcedure,
+			"eth_chainId":               nullProcedure,
+			"eth_protocolVersion":       nullProcedure,
+			"eth_gasPrice":              nullProcedure,
+			"eth_blockNumber":           nullProcedure,
+			"eth_getBalance":            nullProcedure,
+			"eth_getStorageAt":          nullProcedure,
+			"eth_sendTransaction":       sendRawTx, // account management shouldn't really be a feature
+			"eth_sendRawTransaction":    sendRawTx,
+			"eth_getTransactionReceipt": getTxReceipt,
+			"eth_call":                  nullProcedure,
+			"eth_getLogs":               nullProcedure,
+			"eth_getFilterLogs":         nullProcedure,
+		},
+	}
+}
+
+func (m *muxer) Route(method string) (procedure, bool) {
+	m.mut.RLock()
+	defer m.mut.RUnlock()
+	pro, has := m.routes[method]
+	return pro, has
+}
+
+////////////////////////////////
+// 	Routing Subscriptions
+//////////////////////////////
+
+// there are only two supported methods, so making an entire seperate router doesn't
+// quite make sense
+
+type wsProcedure func(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, params []string) error
+
+////////////////////////////////
+// 		RPC Messaging
+//////////////////////////////
+
+// A value of this type can be a JSON-RPC request, notification, successful response or
+// error response. Which one it is depends on the fields.
+type rpcMessage struct {
+	Version string          `json:"jsonrpc,omitempty"`
+	ID      int             `json:"id,omitempty"`
+	Method  string          `json:"method,omitempty"`
+	Params  json.RawMessage `json:"params,omitempty"`
+	Error   *jsonError      `json:"error,omitempty"`
+	Result  interface{}     `json:"result,omitempty"`
+}
+
+type jsonError struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
+func (s *Server) baseRPCMessage() rpcMessage {
+	return rpcMessage{
+		Version: "2.0",
+		ID:      1,
 	}
 }
 
@@ -111,39 +207,14 @@ func rpcError(code int, msg string) []byte {
 	return out
 }
 
-// func Handle(w http.ResponseWriter, r *http.Request) {
-// 	fmt.Println("called handler: ", r.Method)
-// 	body, err := ioutil.ReadAll(r.Body)
-// 	defer r.Body.Close()
-// 	if err != nil {
-// 		fmt.Println("could not read body", err)
-// 		return
-// 	}
-// 	fmt.Println(string(body))
-// 	w.Header().Set("content-type", "application/json")
-// 	w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "result": {"message": "this is a reply"}}`))
-// }
+/*
+web socket notes
+pretty sure the handler func upgrades the connection to a websocket connection?
 
-// A value of this type can be a JSON-RPC request, notification, successful response or
-// error response. Which one it is depends on the fields.
-type rpcMessage struct {
-	Version string          `json:"jsonrpc,omitempty"`
-	ID      int             `json:"id,omitempty"`
-	Method  string          `json:"method,omitempty"`
-	Params  json.RawMessage `json:"params,omitempty"`
-	Error   *jsonError      `json:"error,omitempty"`
-	Result  json.RawMessage `json:"result,omitempty"`
-}
+still not sure if there are two seperate servers running on two different ports or what.
 
-type jsonError struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-}
+the handler may start a goroutine to handle any transmission of data to the client using
+the conn.WriteJSON() method.
 
-func (s *Server) baseRPCMessage() rpcMessage {
-	return rpcMessage{
-		Version: "2.0",
-		ID:      int(s.back.Config.ChainID.Int64()),
-	}
-}
+having a seperate server might not be a big deal.
+*/
