@@ -18,6 +18,8 @@ import (
  - test txpool with a massive number of txs
 */
 
+// test subscribing to heads without serving and figure up what's blocking
+
 func main() {
 	app := cli.NewApp()
 	app.EnableBashCompletion = true

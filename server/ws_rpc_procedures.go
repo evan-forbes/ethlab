@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"net/http"
-	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,33 +14,44 @@ import (
 )
 
 //
-func (s *Server) wsHandler(w http.ResponseWriter, r *http.Request, msg *rpcMessage) {
-	conn, err := websocket.Upgrade(w, r, nil, 1024, 1024)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-	rawPrms := string(msg.Params)
-	switch {
-	case strings.Contains(rawPrms, "logs"):
-		ctx, _ := context.WithTimeout(s.ctx, time.Hour)
-		subLogs(ctx, s.back, conn, json.RawMessage(rawPrms))
+// func (s *Server) wsHandler(w http.ResponseWriter, r *http.Request) {
 
-	case strings.Contains(rawPrms, "newHeads"):
-	default:
-	}
-	// look up the appro procedureA
-	// setup goroutine to feed that client
-	// go subscribe(context.Background(), conn)
-}
+// 	// unmarshal the rpc request
+// 	var req rpcMessage
+// 	err = json.Unmarshal(body, &req)
+// 	if err != nil {
+// 		// send an error back if rpcMessage cannot be unmarshaled
+// 		w.Write(rpcError(500, fmt.Sprintf("could not unmarshal rpc message: %s", err)))
+// 		return
+// 	}
+// 	fmt.Println("method", req.Method)
+// 	conn, err := websocket.Upgrade(w, r, w.Header(), 1024, 1024)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusBadRequest)
+// 	}
+// 	rawPrms := string(req.Params)
+// 	switch {
+// 	case strings.Contains(rawPrms, "logs"):
+// 		ctx, _ := context.WithTimeout(s.ctx, time.Hour)
+// 		subLogs(ctx, s.back, conn, json.RawMessage(rawPrms))
+
+// 	case strings.Contains(rawPrms, "newHeads"):
+// 		ctx, _ := context.WithTimeout(s.ctx, time.Hour)
+// 		subHeads(ctx, s.back, conn, json.RawMessage(rawPrms))
+// 	default:
+// 		w.Write(rpcError(500, fmt.Sprintf("no subscription for %s", rawPrms)))
+// 		log.Println(err)
+// 	}
+// }
 
 ////////////////////////////////
 //	Streaming Heads
 //////////////////////////////
 
-func subHeads(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, rawPrms json.RawMessage) {
+func subHeads(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn) {
 	sink := make(chan *types.Header)
 	sub := eth.Events.SubscribeNewHeads(sink)
-	go feedHeads(ctx, conn, sub, sink)
+	feedHeads(ctx, conn, sub, sink)
 }
 
 func feedHeads(ctx context.Context, conn *websocket.Conn, sub *filters.Subscription, heads <-chan *types.Header) {

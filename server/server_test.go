@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/evan-forbes/ethlab/cmd"
 	"github.com/evan-forbes/ethlab/thereum"
@@ -194,7 +195,7 @@ func TestTxSend(t *testing.T) {
 	mngr.WG.Add(1)
 	go eth.Run(mngr.Ctx, mngr.WG)
 
-	srvr := NewServer("127.0.0.1:8000", eth)
+	srvr := NewServer(mngr.Ctx, "127.0.0.1:8000", eth)
 	go func() {
 		t.Log(srvr.ListenAndServe())
 	}()
@@ -226,4 +227,76 @@ func TestTxSend(t *testing.T) {
 	}
 	fmt.Printf("receipt: %+v\n", receipt)
 	<-mngr.Done()
+}
+
+func TestStream(t *testing.T) {
+	mngr := cmd.NewManager(context.Background(), nil)
+	go mngr.Listen()
+
+	eth, err := thereum.New(thereum.DefaultConfig(), nil)
+	if err != nil {
+		t.Error(err)
+	}
+	mngr.WG.Add(1)
+	go eth.Run(mngr.Ctx, mngr.WG)
+
+	srvr := NewServer(mngr.Ctx, "127.0.0.1:8000", eth)
+	go func() {
+		t.Log(srvr.ListenAndServe())
+	}()
+	srvr.RunWSServer("127.0.0.1:8001")
+	time.Sleep(time.Second * 1)
+	client, err := ethclient.Dial("ws://127.0.0.1:8001")
+	if err != nil {
+		t.Error(err)
+	}
+	sink := make(chan *types.Header)
+	fmt.Println("trying to sub")
+	sub, err := client.SubscribeNewHead(mngr.Ctx, sink)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println("subscribed")
+	mngr.WG.Add(1)
+	go func() {
+		for {
+			select {
+			case err := <-sub.Err():
+				t.Error(err)
+				return
+			case <-mngr.Ctx.Done():
+				return
+			case head := <-sink:
+				fmt.Printf("%+v", head)
+			}
+		}
+	}()
+	mngr.WG.Wait()
+}
+
+func TestWS(t *testing.T) {
+	mngr := cmd.NewManager(context.Background(), nil)
+	go mngr.Listen()
+
+	eth, err := thereum.New(thereum.DefaultConfig(), nil)
+	if err != nil {
+		t.Error(err)
+	}
+	mngr.WG.Add(1)
+	go eth.Run(mngr.Ctx, mngr.WG)
+
+	srvr := NewServer(mngr.Ctx, "127.0.0.1:8000", eth)
+	go func() {
+		t.Log(srvr.ListenAndServe())
+	}()
+	time.Sleep(time.Second * 1)
+	client, err := ethclient.Dial("ws://127.0.0.1:8000")
+	if err != nil {
+		t.Error(err)
+	}
+	id, err := client.ChainID(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(id.String())
 }

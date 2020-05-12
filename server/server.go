@@ -15,6 +15,9 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// use the websocket.Handler
+// defined at https://rollout.io/blog/getting-started-with-websockets-in-go/
+
 ////////////////////////////////
 // 		RPC Server
 //////////////////////////////
@@ -23,9 +26,9 @@ import (
 // the standardized ethereum json rpc.
 type Server struct {
 	http.Server
-	router *mux.Router
-	muxer  *muxer
-	back   *thereum.Thereum
+	router *mux.Router      // handles api endpoints
+	muxer  *muxer           // connects msg to procedure
+	back   *thereum.Thereum // backend to serve
 	ctx    context.Context
 }
 
@@ -35,7 +38,7 @@ func NewServer(ctx context.Context, addr string, back *thereum.Thereum) *Server 
 	srv := &Server{
 		Server: http.Server{
 			Addr:         addr,
-			WriteTimeout: time.Second * 20,
+			WriteTimeout: time.Second * 20, // TODO: read from config
 			ReadTimeout:  time.Second * 10,
 			IdleTimeout:  time.Second * 100,
 			Handler:      rtr,
@@ -56,7 +59,7 @@ func NewServer(ctx context.Context, addr string, back *thereum.Thereum) *Server 
 func (s *Server) rpcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// add the header to the response
-		w.Header().Set("content-type", "application/json")
+		// w.Header().Set("content-type", "application/json")
 
 		// read the body of the request
 		body, err := ioutil.ReadAll(r.Body)
@@ -77,12 +80,11 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 		}
 		fmt.Println("method", req.Method)
 
-		// forward any pub/sub requests to the websocket handlere
-		// TODO: make this a seperate typical rpc procedure for the method 'eth_subscribe'
-		if req.Method == "eth_subscribe" {
-			s.wsHandler(w, r, &req)
-			return
-		}
+		// // forward any pub/sub requests to the websocket handler
+		// if req.Method == "eth_subscribe" {
+		// 	s.wsHandler(w, r)
+		// 	return
+		// }
 
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)
@@ -218,3 +220,19 @@ the conn.WriteJSON() method.
 
 having a seperate server might not be a big deal.
 */
+
+////////////////////////////////
+// 		Web Socket
+//////////////////////////////
+
+func (s *Server) socket(conn *websocket.Conn) {
+	for {
+		var recv []byte
+		_, err := conn.Read(recv)
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		fmt.Println("calling socket! reviecing: ", string(recv))
+	}
+}

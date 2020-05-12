@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -109,7 +110,9 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		default:
 			t.Commit()
+			fmt.Println("block hash:", t.latestBlock.Hash().Hex())
 			// time.Sleep(time.Millisecond * time.Duration(t.delay))
+			time.Sleep(time.Millisecond * time.Duration(time.Second))
 		}
 	}
 }
