@@ -12,7 +12,6 @@ import (
 
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/gorilla/mux"
-	"golang.org/x/net/websocket"
 )
 
 // use the websocket.Handler
@@ -79,12 +78,6 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			return
 		}
 		fmt.Println("method", req.Method)
-
-		// // forward any pub/sub requests to the websocket handler
-		// if req.Method == "eth_subscribe" {
-		// 	s.wsHandler(w, r)
-		// 	return
-		// }
 
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)
@@ -159,15 +152,6 @@ func (m *muxer) Route(method string) (procedure, bool) {
 }
 
 ////////////////////////////////
-// 	Routing Subscriptions
-//////////////////////////////
-
-// there are only two supported methods, so making an entire seperate router doesn't
-// quite make sense
-
-type wsProcedure func(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, params []string) error
-
-////////////////////////////////
 // 		RPC Messaging
 //////////////////////////////
 
@@ -207,32 +191,4 @@ func rpcError(code int, msg string) []byte {
 		},
 	)
 	return out
-}
-
-/*
-web socket notes
-pretty sure the handler func upgrades the connection to a websocket connection?
-
-still not sure if there are two seperate servers running on two different ports or what.
-
-the handler may start a goroutine to handle any transmission of data to the client using
-the conn.WriteJSON() method.
-
-having a seperate server might not be a big deal.
-*/
-
-////////////////////////////////
-// 		Web Socket
-//////////////////////////////
-
-func (s *Server) socket(conn *websocket.Conn) {
-	for {
-		var recv []byte
-		_, err := conn.Read(recv)
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-		fmt.Println("calling socket! reviecing: ", string(recv))
-	}
 }

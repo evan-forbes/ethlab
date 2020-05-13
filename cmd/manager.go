@@ -17,7 +17,7 @@ type Manager struct {
 	Ctx      context.Context
 	WG       *sync.WaitGroup
 	Interupt chan os.Signal
-	DoneChan chan struct{}
+	doneC    chan struct{}
 	// LogFile  *json.Encoder
 }
 
@@ -37,7 +37,7 @@ func NewManager(superctx context.Context, wg *sync.WaitGroup) *Manager {
 		Ctx:      ctx,
 		WG:       wg,
 		Interupt: make(chan os.Signal),
-		DoneChan: make(chan struct{}, 1),
+		doneC:    make(chan struct{}, 1),
 		// LogFile:  json.NewEncoder(f),
 	}
 	return mnger
@@ -52,16 +52,16 @@ func (m *Manager) Listen() {
 			m.Cancel()
 		case <-m.Ctx.Done():
 			m.WG.Wait()
-			m.DoneChan <- struct{}{}
+			m.doneC <- struct{}{}
 			os.Exit(0)
 		}
 	}
 }
 
 // Done wraps around the Manager's context's Done method to block until
-//
+// the manager's wait group is finished
 func (m *Manager) Done() <-chan struct{} {
-	return m.DoneChan
+	return m.doneC
 }
 
 type Action int

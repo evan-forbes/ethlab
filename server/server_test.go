@@ -244,21 +244,24 @@ func TestStream(t *testing.T) {
 	go func() {
 		t.Log(srvr.ListenAndServe())
 	}()
-	srvr.RunWSServer("127.0.0.1:8001")
+	go func() {
+		t.Log(srvr.RunWS("127.0.0.1:8001"))
+	}()
 	time.Sleep(time.Second * 1)
 	client, err := ethclient.Dial("ws://127.0.0.1:8001")
 	if err != nil {
 		t.Error(err)
 	}
 	sink := make(chan *types.Header)
-	fmt.Println("trying to sub")
 	sub, err := client.SubscribeNewHead(mngr.Ctx, sink)
 	if err != nil {
+		fmt.Println(err)
 		t.Error(err)
 	}
-	fmt.Println("subscribed")
+	fmt.Println("subscribed", sub)
 	mngr.WG.Add(1)
 	go func() {
+		defer mngr.WG.Done()
 		for {
 			select {
 			case err := <-sub.Err():
@@ -267,7 +270,7 @@ func TestStream(t *testing.T) {
 			case <-mngr.Ctx.Done():
 				return
 			case head := <-sink:
-				fmt.Printf("%+v", head)
+				fmt.Printf("THE FUCK %+v\n", head.Hash().Hex())
 			}
 		}
 	}()

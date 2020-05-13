@@ -40,7 +40,6 @@ func TestBoot(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	mngr.WG.Add(1)
 	go eth.Run(mngr.Ctx, mngr.WG)
 	sub := eth.Events.SubscribeNewHeads(heads)
 	mngr.WG.Add(1)
@@ -58,7 +57,7 @@ func TestBoot(t *testing.T) {
 			}
 		}
 	}()
-	mngr.WG.Wait()
+	<-mngr.Done()
 }
 
 // ContractCaller defines the methods needed to allow operating with contract on a read

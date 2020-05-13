@@ -110,9 +110,8 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 			return
 		default:
 			t.Commit()
-			fmt.Println("block hash:", t.latestBlock.Hash().Hex())
-			// time.Sleep(time.Millisecond * time.Duration(t.delay))
-			time.Sleep(time.Millisecond * time.Duration(time.Second))
+			// fmt.Println("block hash:", t.latestBlock.Hash().Hex())
+			time.Sleep(time.Millisecond * time.Duration(t.delay))
 		}
 	}
 }
@@ -121,11 +120,11 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 func (t *Thereum) Commit() {
 	// TODO: 1)this is fugly 2) add custom delay 3) add ability to pause
 	// create a new block using existing transaction in the pool
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	block, state := t.nextBlock()
+	t.mu.Lock()
 	t.latestBlock = block
 	t.latestState = state
+	t.mu.Unlock()
 	// add optional delay before adding block to simulate pending state
 	t.appendBlock(block)
 
@@ -134,6 +133,8 @@ func (t *Thereum) Commit() {
 // nextBlock mints a new block, filling it with transactions from the transaction pool
 func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 	// make new blocks using the transaction pool
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	blocks, _ := core.GenerateChain(
 		t.chainConfig,
 		t.blockchain.CurrentBlock(),
@@ -155,11 +156,12 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 	freshBlock := blocks[0]
 
 	freshState, _ := state.New(freshBlock.Root(), statedb.Database())
-
 	return freshBlock, freshState
 }
 
 func (t *Thereum) appendBlock(block *types.Block) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	_, err := t.blockchain.InsertChain([]*types.Block{block})
 	// TODO: get rid of panic and handle the errors
 	if err != nil {

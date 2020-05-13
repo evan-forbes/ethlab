@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/ethereum/go-ethereum"
@@ -51,6 +52,11 @@ import (
 func subHeads(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn) {
 	sink := make(chan *types.Header)
 	sub := eth.Events.SubscribeNewHeads(sink)
+	conn.WriteJSON(rpcMessage{
+		Version: "2.0",
+		ID:      1,
+		Result:  sub.ID,
+	})
 	feedHeads(ctx, conn, sub, sink)
 }
 
@@ -68,22 +74,22 @@ func feedHeads(ctx context.Context, conn *websocket.Conn, sub *filters.Subscript
 				Subscription: string(sub.ID),
 				Result:       head,
 			}
-			// marshal the log in the expected formate
+			// marshal the log in the expected format
 			resultBytes, err := json.Marshal(result)
 			if err != nil {
 				log.Println("failed to marshal head during streaming")
 				return
 			}
 			// create the rpc msg using the marshaled log
-			msg := *&rpcMessage{
+			msg := rpcMessage{
 				Version: "2.0",
-				ID:      1,
-				Method:  "eth_subscribe",
+				Method:  "eth_subscription",
 				Params:  resultBytes,
 			}
 			// write over the websocket
 			err = conn.WriteJSON(msg)
 			if err != nil {
+				fmt.Println("ws writing error:", err)
 				log.Println("failed to marshal head during streaming")
 				return
 			}
@@ -114,6 +120,14 @@ func subLogs(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, ra
 	// subscribe via the backend's EventSystem
 	sink := make(chan []*types.Log)
 	sub, err := eth.Events.SubscribeLogs(query.FilterQuery(), sink)
+	if err != nil {
+		return err
+	}
+	err = conn.WriteJSON(rpcMessage{
+		Version: "2.0",
+		ID:      1,
+		Result:  sub.ID,
+	})
 	if err != nil {
 		return err
 	}
