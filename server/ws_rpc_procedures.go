@@ -14,37 +14,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//
-// func (s *Server) wsHandler(w http.ResponseWriter, r *http.Request) {
-
-// 	// unmarshal the rpc request
-// 	var req rpcMessage
-// 	err = json.Unmarshal(body, &req)
-// 	if err != nil {
-// 		// send an error back if rpcMessage cannot be unmarshaled
-// 		w.Write(rpcError(500, fmt.Sprintf("could not unmarshal rpc message: %s", err)))
-// 		return
-// 	}
-// 	fmt.Println("method", req.Method)
-// 	conn, err := websocket.Upgrade(w, r, w.Header(), 1024, 1024)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusBadRequest)
-// 	}
-// 	rawPrms := string(req.Params)
-// 	switch {
-// 	case strings.Contains(rawPrms, "logs"):
-// 		ctx, _ := context.WithTimeout(s.ctx, time.Hour)
-// 		subLogs(ctx, s.back, conn, json.RawMessage(rawPrms))
-
-// 	case strings.Contains(rawPrms, "newHeads"):
-// 		ctx, _ := context.WithTimeout(s.ctx, time.Hour)
-// 		subHeads(ctx, s.back, conn, json.RawMessage(rawPrms))
-// 	default:
-// 		w.Write(rpcError(500, fmt.Sprintf("no subscription for %s", rawPrms)))
-// 		log.Println(err)
-// 	}
-// }
-
 ////////////////////////////////
 //	Streaming Heads
 //////////////////////////////
@@ -107,7 +76,7 @@ type headPacket struct {
 //////////////////////////////
 
 // subLogs is the procedure to stream logs via websocket
-func subLogs(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, rawPrms json.RawMessage) error {
+func subLogs(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, rawPrms json.RawMessage) {
 	// attempt to unmarshal in
 	params := []interface{}{}
 	var method string
@@ -115,13 +84,13 @@ func subLogs(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, ra
 	params = append(params, method, query)
 	err := json.Unmarshal(rawPrms, &params)
 	if err != nil {
-		return err
+		log.Println("failure to unmarshal request", err)
+		return
 	}
 	// subscribe via the backend's EventSystem
 	sink := make(chan []*types.Log)
 	sub, err := eth.Events.SubscribeLogs(query.FilterQuery(), sink)
 	if err != nil {
-		return err
 	}
 	err = conn.WriteJSON(rpcMessage{
 		Version: "2.0",
@@ -129,11 +98,10 @@ func subLogs(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, ra
 		Result:  sub.ID,
 	})
 	if err != nil {
-		return err
+		// TODO: handle errors in a more meaningful and way
 	}
 	// Write the logs to the connection
-	go feedLogs(ctx, conn, sub, sink)
-	return nil
+	feedLogs(ctx, conn, sub, sink)
 }
 
 func feedLogs(ctx context.Context, conn *websocket.Conn, sub *filters.Subscription, logs <-chan []*types.Log) {

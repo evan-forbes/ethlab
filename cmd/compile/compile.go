@@ -4,14 +4,22 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common/compiler"
+	"github.com/pkg/errors"
 )
 
-func All(path string) {
+// All compiles all given solidity files in a given path
+func All(path string) (map[string]*compiler.Contract, error) {
 	// set default path to the current dir
 	if path == "" {
 		path = "."
 	}
-
+	sources, err := openAllFiles(path, 0)
+	if err != nil {
+		return nil, errors.Wrap(err, "failure to compile.All:")
+	}
+	return compiler.CompileSolidity("solc", sources...)
 }
 
 // openAllFiles searches for and reads solidity source files up to four directories deep
@@ -19,7 +27,7 @@ func All(path string) {
 func openAllFiles(path string, recCount int) (out []string, err error) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
-		return out, err
+		return out, errors.Wrap(err, "failure to openAllFiles:")
 	}
 	for _, file := range files {
 		// don't go over the recurse limit

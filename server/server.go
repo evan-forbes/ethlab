@@ -14,8 +14,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// use the websocket.Handler
-// defined at https://rollout.io/blog/getting-started-with-websockets-in-go/
+/* TODO:
+- handle errors during streaming
+- implement the ability to unsubscribe cleanly
+*/
 
 ////////////////////////////////
 // 		RPC Server
@@ -192,3 +194,16 @@ func rpcError(code int, msg string) []byte {
 	)
 	return out
 }
+
+////////////////////////////////
+//	Ethereum Naming Server
+//////////////////////////////
+
+// save the names of deployed contracts
+// provide access to other contracts?
+// simply return the address of the ens
+// then send a contract request to the node of that address asking
+// for the address of "uniswap-factory" etc
+
+// contract should just allow the owner to add an address
+// fees optional

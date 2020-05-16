@@ -277,29 +277,10 @@ func TestStream(t *testing.T) {
 	mngr.WG.Wait()
 }
 
-func TestWS(t *testing.T) {
-	mngr := cmd.NewManager(context.Background(), nil)
-	go mngr.Listen()
+func TestDeployContract(t *testing.T) {
 
-	eth, err := thereum.New(thereum.DefaultConfig(), nil)
-	if err != nil {
-		t.Error(err)
-	}
-	mngr.WG.Add(1)
-	go eth.Run(mngr.Ctx, mngr.WG)
-
-	srvr := NewServer(mngr.Ctx, "127.0.0.1:8000", eth)
-	go func() {
-		t.Log(srvr.ListenAndServe())
-	}()
-	time.Sleep(time.Second * 1)
-	client, err := ethclient.Dial("ws://127.0.0.1:8000")
-	if err != nil {
-		t.Error(err)
-	}
-	id, err := client.ChainID(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-	fmt.Println(id.String())
 }
+
+//  ethlab boot -ws
+//  ethlab compile
+//  ethlab
