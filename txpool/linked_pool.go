@@ -1,7 +1,6 @@
 package txpool
 
 import (
-	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -165,11 +164,8 @@ func Batch(gasLimit uint64, pool *LinkedPool) []*types.Transaction {
 
 		for i, tx := range set.Transactions {
 			gasCount = gasCount + tx.Gas()
-			fmt.Println(gasCount)
 			if gasCount > gasLimit {
-				fmt.Println("first tx", set.Transactions)
 				set.Transactions = set.Transactions[i:]
-				fmt.Println("second txs", set.Transactions)
 				from, _ := pool.signer.Sender(tx)
 				pool.Insert(from, set.Transactions...)
 				return out

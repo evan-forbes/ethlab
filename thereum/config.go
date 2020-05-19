@@ -27,32 +27,14 @@ type Config struct {
 	WSPort        uint   `json:"ws_port"`
 }
 
-// LoadConfig attempts to load a config from a specified path,
-// if unsuccessful, it will look in the current directory. Finally,
-// if all fails, will use the default config.
-func LoadConfig(path string) (Config, error) {
-	out := DefaultConfig()
-	if path != "" {
-		// try to load the config from file
-		return configFromFile(path)
-	}
-	// look for a local file
-	_, err := os.Stat("config.json")
-	if os.IsNotExist(err) {
-		return out, nil
-	}
-	return configFromFile("config.json")
-}
-
-// configFromFile opens and decodes a config.json file
-func configFromFile(path string) (Config, error) {
+// ConfigFromFile opens and decodes a config.json file
+func ConfigFromFile(path string) (Config, error) {
 	var out Config
 	file, err := os.Open(path)
 	if err != nil {
 		return out, err
 	}
-	dec := json.NewDecoder(file)
-	err = dec.Decode(&out)
+	err = json.NewDecoder(file).Decode(&out)
 	return out, err
 }
 
@@ -118,7 +100,7 @@ func DefaultConfig() Config {
 		InMemory:      true,
 		GenesisConfig: defaultGenesis(),
 		Allocation: map[string]string{
-			"root":   "99999999999999999999999999",
+			"root":   "999999999999999999999999999999",
 			"Alice":  "10000000000000000000",
 			"Bob":    "10000000000000000000",
 			"Celine": "10000000000000000000",
@@ -128,5 +110,9 @@ func DefaultConfig() Config {
 		},
 		GasLimit: 10485760,
 		Delay:    100,
+		Host:     "127.0.0.1",
+		Port:     8438,
+		WSHost:   "127.0.0.1",
+		WSPort:   8439,
 	}
 }

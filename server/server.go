@@ -79,7 +79,6 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			w.Write(rpcError(500, fmt.Sprintf("could not unmarshal rpc message: %s", err)))
 			return
 		}
-		fmt.Println("method", req.Method)
 
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)

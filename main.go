@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/evan-forbes/ethlab/cmd/boot"
 	"github.com/urfave/cli/v2"
 )
 
@@ -59,16 +60,17 @@ func main() {
 		},
 	}
 
+	// bootFlags are the flags for boo
 	bootFlags := []cli.Flag{
 		&cli.StringFlag{
-			Name:  "address, a",
+			Name:  "ip",
 			Value: "",
-			Usage: "specify address for server to use (can also enter in config file)",
+			Usage: "specify ip address for server to use (can also enter in config file). default == 127.0.0.1:84384",
 		},
 		&cli.StringFlag{
 			Name:  "config, c",
 			Value: "",
-			Usage: "path to config file (.json)",
+			Usage: "*optional* path to config file (.json)",
 		},
 	}
 
@@ -80,9 +82,10 @@ func main() {
 			Flags: abiFlags,
 		},
 		{
-			Name:  "boot",
-			Usage: "start serving access to a configured blockchain",
-			Flags: bootFlags,
+			Name:   "boot",
+			Usage:  "start serving access to a configured blockchain",
+			Flags:  bootFlags,
+			Action: boot.Boot,
 		},
 	}
 

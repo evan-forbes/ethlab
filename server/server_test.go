@@ -245,7 +245,7 @@ func TestStream(t *testing.T) {
 		t.Log(srvr.ListenAndServe())
 	}()
 	go func() {
-		t.Log(srvr.RunWS("127.0.0.1:8001"))
+		t.Log(srvr.ServeWS("127.0.0.1:8001"))
 	}()
 	time.Sleep(time.Second * 1)
 	client, err := ethclient.Dial("ws://127.0.0.1:8001")
@@ -270,7 +270,7 @@ func TestStream(t *testing.T) {
 			case <-mngr.Ctx.Done():
 				return
 			case head := <-sink:
-				fmt.Printf("THE FUCK %+v\n", head.Hash().Hex())
+				fmt.Printf("%+v\n", head.Hash().Hex())
 			}
 		}
 	}()

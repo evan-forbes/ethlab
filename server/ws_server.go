@@ -15,8 +15,8 @@ import (
 
 var wsPool = new(sync.Pool)
 
-// RunWS starts a seperate websocket server for ethereum json rpc pub/sub
-func (s *Server) RunWS(endpoint string) error {
+// ServeWS starts a seperate websocket server for ethereum json rpc pub/sub
+func (s *Server) ServeWS(endpoint string) error {
 	lstnr, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		return err

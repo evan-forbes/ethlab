@@ -61,7 +61,6 @@ func sendRawTx(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("tx decoded", tx, err)
 	if err != nil {
 		return nil, err
 	}
