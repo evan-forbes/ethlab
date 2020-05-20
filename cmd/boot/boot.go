@@ -39,7 +39,6 @@ func Boot(c *cli.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	mngr.WG.Add(1)
 	go eth.Run(mngr.Ctx, mngr.WG)
 
@@ -49,29 +48,33 @@ func Boot(c *cli.Context) error {
 	go func() {
 		log.Fatal(srvr.ListenAndServe())
 	}()
+
 	// start the websocket server
 	go func() {
 		log.Fatal(srvr.ServeWS(fmt.Sprintf("%s:%d", config.WSHost, config.WSPort)))
 	}()
 
-	// wait for a hot second to make sure the servers are up and running
-	// TODO: use something more definitive
+	// wait for a hot second to make sure the servers are up and running // TODO: use something more definitive
 	time.Sleep(time.Millisecond * 88)
 
+	// dial for a client to
 	client, err := ethclient.Dial(fmt.Sprintf("http://%s:%d", config.Host, config.Port))
 	if err != nil {
 		log.Fatal("failed to connect to ethlab", err)
 	}
 
-	// deploy the ens
+	// prepare root to deploy the ethlab contracts
 	root := eth.Accounts["root"]
 	root.TxOpts.GasLimit = 1000000
 	root.TxOpts.GasPrice = big.NewInt(1000)
+
+	// depoly the ethlab version of the ens
 	ensAddr, _, _, err := ens.DeployEns(root.TxOpts, client)
 	if err != nil {
 		log.Fatal("failed to deploy ENS ", err)
 	}
 	fmt.Println("ENS deployed: ", ensAddr.Hex())
+
 	<-mngr.Done()
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/evan-forbes/ethlab/cmd/abigen"
 	"github.com/evan-forbes/ethlab/cmd/boot"
 	"github.com/urfave/cli/v2"
 )
@@ -74,18 +75,39 @@ func main() {
 		},
 	}
 
+	// bootFlags are the flags for boo
+	compileFlags := []cli.Flag{
+		// &cli.StringFlag{
+		// 	Name:  "ip",
+		// 	Value: "",
+		// 	Usage: "specify ip address for server to use (can also enter in config file). default == 127.0.0.1:84384",
+		// },
+		// &cli.StringFlag{
+		// 	Name:  "config, c",
+		// 	Value: "",
+		// 	Usage: "*optional* path to config file (.json)",
+		// },
+	}
+
 	// subcommands
 	app.Commands = []*cli.Command{
 		{
-			Name:  "abigen",
-			Usage: "generate go bindings for an abi",
-			Flags: abiFlags,
+			Name:   "abigen",
+			Usage:  "generate ethlab and go-ethereum go bindings for an abi or bin",
+			Flags:  abiFlags,
+			Action: abigen.Generate,
 		},
 		{
 			Name:   "boot",
-			Usage:  "start serving access to a configured blockchain",
+			Usage:  "start serving access to a configured Thereum blockchain",
 			Flags:  bootFlags,
 			Action: boot.Boot,
+		},
+		{
+			Name:   "compile",
+			Usage:  "combine solc and abigen with a simple naming scheme",
+			Flags:  compileFlags,
+			Action: compile.Compile,
 		},
 	}
 
