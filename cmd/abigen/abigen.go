@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/evan-forbes/ethlab/bind"
+	"github.com/evan-forbes/ethlab/cmd/abigen/bind"
 	"github.com/pkg/errors"
 	cli "github.com/urfave/cli/v2"
 )
