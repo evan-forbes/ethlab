@@ -1,6 +1,6 @@
 pragma solidity 0.5.15;
 
-contract Test {
+contract ENS {
 
     // Domain holds info needed to keep track of ownership`
     struct Domain {
