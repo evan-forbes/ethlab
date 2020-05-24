@@ -32,3 +32,4 @@ contract ENS {
         emit AddDomain(name, addr, domains[name].owner);
     }
 }
+

@@ -6,6 +6,7 @@ import (
 
 	"github.com/evan-forbes/ethlab/cmd/abigen"
 	"github.com/evan-forbes/ethlab/cmd/boot"
+	"github.com/evan-forbes/ethlab/cmd/compile"
 	"github.com/urfave/cli/v2"
 )
 
@@ -77,11 +78,11 @@ func main() {
 
 	// bootFlags are the flags for boo
 	compileFlags := []cli.Flag{
-		// &cli.StringFlag{
-		// 	Name:  "ip",
-		// 	Value: "",
-		// 	Usage: "specify ip address for server to use (can also enter in config file). default == 127.0.0.1:84384",
-		// },
+		&cli.StringFlag{
+			Name:  "pkg, p",
+			Value: "",
+			Usage: "specify the package name",
+		},
 		// &cli.StringFlag{
 		// 	Name:  "config, c",
 		// 	Value: "",

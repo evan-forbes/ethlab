@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func All(path string) (map[string]contract, err) {
+func All(path string) (map[string]contract, error) {
 	if path == "" {
 		path = "."
 	}
@@ -79,19 +79,24 @@ type solcOutput struct {
 // solidity compiles all given solidity source files.
 func solidity(solc string, sourcefiles ...string) (solcOutput, error) {
 	if len(sourcefiles) == 0 {
-		return errors.New("solc: no source files")
+		return solcOutput{}, errors.New("solc: no source files")
 	}
 	source, err := slurpFiles(sourcefiles)
 	if err != nil {
-		return err
+		return solcOutput{}, err
 	}
 	s, err := compiler.SolidityVersion(solc)
 	if err != nil {
-		return err
+		return solcOutput{}, err
 	}
-	args := append(s.makeArgs(), "--")
+	args := []string{
+		"--combined-json", "bin,bin-runtime,srcmap,srcmap-runtime,abi,userdoc,devdoc,metadata,hashes",
+		"--optimize",                  // code optimizer switched on
+		"--allow-paths", "., ./, ../", // default to support relative paths //
+		"--",
+	}
 	cmd := exec.Command(s.Path, append(args, sourcefiles...)...)
-	return s.run(cmd, source)
+	return run(cmd, source)
 }
 
 // run executes the command with the source string as

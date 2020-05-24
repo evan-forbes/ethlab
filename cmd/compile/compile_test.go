@@ -2,15 +2,16 @@ package compile
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/0xProject/go-ethereum/common/compiler"
+	"github.com/evan-forbes/ethlab/cmd/abigen/bind"
 	"github.com/matryer/is"
 )
 
 func TestReadAllFiles(t *testing.T) {
 	is := is.New(t)
-	files, err := openAllFiles("../../testdata/badSolFiles", 0)
+	files, err := findAllSolFiles("../../testdata/badSolFiles", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -21,13 +22,26 @@ func TestReadAllFiles(t *testing.T) {
 }
 
 func TestCompile(t *testing.T) {
-	cons, err := compiler.CompileSolidityString("solc", soliditySource)
+	contracts, err := All("../../contracts/ens/")
 	if err != nil {
 		t.Error(err)
 	}
-	for name, con := range cons {
-		fmt.Println("name", name)
-		fmt.Printf("%+v", con)
+	for path, con := range contracts {
+		// fmt.Println(name, con.Abi)
+		// generate bindings
+		pathData := strings.Split(path, ":")
+		typeName := pathData[len(pathData)-1]
+		code, err := bind.Bind(
+			[]string{typeName},
+			[]string{con.Abi},
+			[]string{con.Bin},
+			"ens",
+		)
+		if err != nil {
+			t.Error(err)
+		}
+		fmt.Println(code)
+		// use bind to generate go bindings
 	}
 }
 
