@@ -45,7 +45,7 @@ func Generate(ctx *cli.Context) error {
 		return errors.Wrapf(err, "Problem loading files in abi path: %s bin path: %s", abiPath, binPath)
 	}
 	// generate bindings
-	code, err := bind.Bind(
+	code, eventcode, err := bind.Bind(
 		[]string{tp},
 		[]string{jsonABI},
 		[]string{hexBin},
@@ -59,6 +59,11 @@ func Generate(ctx *cli.Context) error {
 	err = ioutil.WriteFile(filename, []byte(code), 0644)
 	if err != nil {
 		return err
+	}
+	filename = fmt.Sprintf("%s_events_gen.go", tp)
+	err = ioutil.WriteFile(filename, []byte(eventcode), 0644)
+	if err != nil {
+		return errors.Wrap(err, "failure to write file:")
 	}
 
 	return nil

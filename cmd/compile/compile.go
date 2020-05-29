@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -12,11 +13,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+/*
+the most useful interface would be for the apis of that contract
+*/
+
 func All(path string) (map[string]contract, error) {
 	if path == "" {
-		path = "."
+		p, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		path = p
 	}
-	filepaths, err := findAllSolFiles(path, 0)
+	filepaths, err := findAllFiles(path, ".sol", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +38,7 @@ func All(path string) (map[string]contract, error) {
 
 // findAllSolFiles searches for and returns the paths to solidity source files up to
 // four directories deep
-func findAllSolFiles(path string, recCount int) (out []string, err error) {
+func findAllFiles(path, substr string, recCount int) (out []string, err error) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		return out, errors.Wrap(err, "failure to findAllSolFiles:")
@@ -43,7 +52,7 @@ func findAllSolFiles(path string, recCount int) (out []string, err error) {
 		pathToFile := fmt.Sprintf("%s/%s", path, file.Name())
 		// recursively search directories
 		if file.IsDir() {
-			next, err := findAllSolFiles(pathToFile, recCount+1)
+			next, err := findAllFiles(pathToFile, substr, recCount+1)
 			if err != nil {
 				fmt.Println(fmt.Println("failure to find files:", err))
 				continue
@@ -52,7 +61,7 @@ func findAllSolFiles(path string, recCount int) (out []string, err error) {
 			continue
 		}
 		// check if the file is .sol
-		if strings.Contains(file.Name(), ".sol") {
+		if strings.Contains(file.Name(), substr) {
 			// add file path to output
 			out = append(out, pathToFile)
 		}
@@ -91,8 +100,8 @@ func solidity(solc string, sourcefiles ...string) (solcOutput, error) {
 	}
 	args := []string{
 		"--combined-json", "bin,bin-runtime,srcmap,srcmap-runtime,abi,userdoc,devdoc,metadata,hashes",
-		"--optimize",                  // code optimizer switched on
-		"--allow-paths", "., ./, ../", // default to support relative paths //
+		"--optimize", // code optimizer switched on
+		// "--allow-paths", "., ../", // default to support relative paths //
 		"--",
 	}
 	cmd := exec.Command(s.Path, append(args, sourcefiles...)...)

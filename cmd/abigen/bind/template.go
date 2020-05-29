@@ -24,7 +24,11 @@ type tmplData struct {
 	Contracts map[string]*tmplContract // List of contracts to generate into this file
 	Libraries map[string]string        // Map the bytecode's link pattern to the library name
 	Structs   map[string]*tmplStruct   // Contract struct type definitions
+	Events    map[string]*tmplEvent
 }
+
+// TODO: don't do anything for log ids that have already been generated
+// do something about the shitload of files generated for more complex projects
 
 // tmplContract contains the data needed to generate an individual contract binding.
 type tmplContract struct {
@@ -53,6 +57,7 @@ type tmplEvent struct {
 	Original   abi.Event // Original event as parsed by the abi package
 	Normalized abi.Event // Normalized version of the parsed fields
 	Topic      string
+	Type       string
 }
 
 // tmplField is a wrapper around a struct field with binding language
@@ -103,7 +108,7 @@ var (
 {{$structs := .Structs}}
 {{range $contract := .Contracts}}
 
-// {{.Type}} is a wrapper around BoundContract, enforcing type checking and including
+// {{.Type}} is a wrapper around bind.BoundContract, enforcing type checking and including
 // QoL helper methods
 type {{.Type}} struct {
 	bind.BoundContract
@@ -186,49 +191,6 @@ func (_{{$contract.Type}} *{{$contract.Type}}) {{.Normalized.Name}}(opts *bind.T
 {{end}}
 
 //////////////////////////////////////////////////////
-//		Events
-////////////////////////////////////////////////////
-
-{{range .Events}}
-//////// {{.Normalized.Name}} ////////
-
-// {{.Normalized.Name}}ID is the hex of the Topic Hash
-const {{.Normalized.Name}}ID = "{{.Topic}}"
-
-// {{.Normalized.Name}}Log represents a {{.Normalized.Name}} event raised by the {{$contract.Type}} contract.
-type {{.Normalized.Name}}Log struct { {{range .Normalized.Inputs}}
-	{{capitalise .Name}} {{if .Indexed}}{{bindtopictype .Type $structs}}{{else}}{{bindtype .Type $structs}}{{end}}; {{end}}
-	Raw types.Log // Blockchain specific contextual infos
-}
-
-// Unpack{{.Normalized.Name}}Log is a log parse operation binding the contract event {{.Topic}}
-// Solidity: {{formatevent .Original $structs}}
-func (_{{$contract.Type}} *{{$contract.Type}}) Unpack{{.Normalized.Name}}Log(log types.Log) (*{{.Normalized.Name}}Log, error) {
-	event := new({{.Normalized.Name}}Log)
-	if err := _{{$contract.Type}}.UnpackLog(event, "{{.Original.Name}}", log); err != nil {
-		return nil, err
-	}
-	return event, nil
-}
-
-{{end}}
-
-/*
-Mux can be copied and pasted to save ya a quick minute when distinguishing between log data
-func Mux(c *{{$contract.Type}}, log types.Log) error {
-	switch log.Topics[0].Hex() { {{range .Events}}
-	case {{$pkg}}.{{$contract.Type}}{{.Normalized.Name}}ID:
-		ulog, err := c.Unpack{{.Normalized.Name}}Log(log)
-		if err != nil {
-			return err
-		}
-		// insert additional code here
-	{{end}}
-	}
-}
-*/
-
-//////////////////////////////////////////////////////
 //		Bin and ABI
 ////////////////////////////////////////////////////
 
@@ -240,10 +202,84 @@ const {{.Type}}ABI = "{{.InputABI}}"
 {{end}}
 `
 
+// eventsTmpl is the template for generating go bindings to events and logs in ethereuem.
+const eventsTmpl = `
+{{$pkg := .Package}}
+package {{$pkg}}
+
+import (
+	"math/big"
+	"strings"
+
+	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
+)
+
+// Reference imports to suppress errors if they are not otherwise used.
+var (
+	_ = big.NewInt
+	_ = strings.NewReader
+	_ = ethereum.NotFound
+	_ = abi.U256
+	_ = bind.Bind
+	_ = common.Big1
+	_ = types.BloomLookup
+	_ = event.NewSubscription
+)
+
+{{$structs := .Structs}}
+//////////////////////////////////////////////////////
+//		Events
+////////////////////////////////////////////////////
+
+{{range .Events}}
+//////// {{.Normalized.Name}} ////////
+
+// {{.Normalized.Name}}ID is the hex of the Topic Hash
+const {{.Normalized.Name}}ID = "{{.Topic}}"
+
+// {{.Normalized.Name}} represents a {{.Normalized.Name}} event raised by the {{.Type}} contract.
+type {{.Normalized.Name}} struct { {{range .Normalized.Inputs}}
+	{{capitalise .Name}} {{if .Indexed}}{{bindtopictype .Type $structs}}{{else}}{{bindtype .Type $structs}}{{end}}; {{end}}
+	Raw types.Log // Blockchain specific contextual infos
+}
+
+// Unpack{{.Normalized.Name}} is a log parse operation binding the contract event {{.Topic}}
+// Solidity: {{formatevent .Original $structs}}
+func (_{{.Type}} *{{.Type}}) Unpack{{.Normalized.Name}}(log types.Log) (*{{.Normalized.Name}}, error) {
+	event := new({{.Normalized.Name}})
+	if err := _{{.Type}}.UnpackLog(event, "{{.Original.Name}}", log); err != nil {
+		return nil, err
+	}
+	return event, nil
+}
+
+{{end}}
+`
+
 // // for event in events make events + unpacker + parser
-// // {{$contract.Type}}{{.Normalized.Name}} represents a {{.Normalized.Name}} event raised by the {{$contract.Type}} contract.
-// type {{$contract.Type}}{{.Normalized.Name}} struct { {{range .Normalized.Inputs}}
+// // {{.Type}}{{.Normalized.Name}} represents a {{.Normalized.Name}} event raised by the {{.Type}} contract.
+// type {{.Type}}{{.Normalized.Name}} struct { {{range .Normalized.Inputs}}
 // 	{{capitalise .Name}} {{if .Indexed}}{{bindtopictype .Type $structs}}{{else}}{{bindtype .Type $structs}}{{end}}; {{end}}
 // 	Raw types.Log // Blockchain specific contextual infos
 // }
-// func (_{{$contract.Type}}) *{{contract.Type}} {{}}
+// func (_{{.Type}}) *{{.Type}} {{}}
+
+// /*
+// Mux can be copied and pasted to save ya a quick minute when distinguishing between log data
+// func Mux(c *{{.Type}}, log types.Log) error {
+// 	switch log.Topics[0].Hex() { {{range .Events}}
+// 	case {{$pkg}}.{{.Type}}{{.Normalized.Name}}ID:
+// 		ulog, err := c.Unpack{{.Normalized.Name}}Log(log)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		// insert additional code here
+// 	{{end}}
+// 	}
+// }
+// */

@@ -11,7 +11,7 @@ import (
 
 func TestReadAllFiles(t *testing.T) {
 	is := is.New(t)
-	files, err := findAllSolFiles("../../testdata/badSolFiles", 0)
+	files, err := findAllFiles("../../testdata/badSolFiles", ".sol", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -31,7 +31,7 @@ func TestCompile(t *testing.T) {
 		// generate bindings
 		pathData := strings.Split(path, ":")
 		typeName := pathData[len(pathData)-1]
-		code, err := bind.Bind(
+		code, _, err := bind.Bind(
 			[]string{typeName},
 			[]string{con.Abi},
 			[]string{con.Bin},

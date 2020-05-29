@@ -33,11 +33,14 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+//////////////////////////////////////
+// NOTE: this code is *slightly* modified from go-ethereum's bind package. Fair warning, it's plenty messy and a little difficult to debug
+////////////////////////////////////
+
 // TODO:
-// - Remove all the code that is no longer needed (Java related)
-// - Simplify by eliminating support for multiple contracts,
-//   replace this functionality by calling once per contract
-//   writing generated code to individual packages instead.
+// - Remove ALL the code that is no longer needed... theres a lot...
+// - don't generate any code for libraries
+// - generate go interfaces for solidity interfaces and not contracts
 
 // Lang is a target programming language selector to generate bindings for.
 type Lang int
@@ -59,7 +62,7 @@ const (
 // to be used as is in client code, but rather as an intermediate struct which
 // enforces compile time type safety and naming convention opposed to having to
 // manually maintain hard coded strings that break on runtime.
-func Bind(types []string, abis []string, bytecodes []string, pkg string) (string, error) {
+func Bind(types []string, abis []string, bytecodes []string, pkg string) (string, string, error) {
 	// put in defaults here
 	lang := LangGo
 	var fsigs []map[string]string
@@ -74,12 +77,20 @@ func Bind(types []string, abis []string, bytecodes []string, pkg string) (string
 
 		// isLib is the map used to flag each encountered library as such
 		isLib = make(map[string]struct{})
+
+		topics     = make(map[string]*tmplEvent)
+		interfaces = make(map[string]*tmplContract)
 	)
 	for i := 0; i < len(types); i++ {
+		// skip abis that are empty (usually libraries)
+		if abis[i] == "[]" {
+			continue
+		}
+
 		// Parse the actual ABI to generate the binding for
 		evmABI, err := abi.JSON(strings.NewReader(abis[i]))
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		// Strip any whitespace from the JSON ABI
 		strippedABI := strings.Map(func(r rune) rune {
@@ -113,7 +124,7 @@ func Bind(types []string, abis []string, bytecodes []string, pkg string) (string
 				identifiers = transactIdentifiers
 			}
 			if identifiers[normalizedName] {
-				return "", fmt.Errorf("duplicated identifier \"%s\"(normalized \"%s\"), use --alias for renaming", original.Name, normalizedName)
+				return "", "", fmt.Errorf("duplicated identifier \"%s\"(normalized \"%s\"), use --alias for renaming", original.Name, normalizedName)
 			}
 			identifiers[normalizedName] = true
 			normalized.Name = normalizedName
@@ -155,7 +166,7 @@ func Bind(types []string, abis []string, bytecodes []string, pkg string) (string
 			// Ensure there is no duplicated identifier
 			normalizedName := methodNormalizer[lang](alias(aliases, original.Name))
 			if eventIdentifiers[normalizedName] {
-				return "", fmt.Errorf("duplicated identifier \"%s\"(normalized \"%s\"), use --alias for renaming", original.Name, normalizedName)
+				return "", "", fmt.Errorf("duplicated identifier \"%s\"(normalized \"%s\"), use --alias for renaming", original.Name, normalizedName)
 			}
 			eventIdentifiers[normalizedName] = true
 			normalized.Name = normalizedName
@@ -171,10 +182,26 @@ func Bind(types []string, abis []string, bytecodes []string, pkg string) (string
 				}
 			}
 			// Append the event to the accumulator list
-			newEvent := &tmplEvent{Original: original, Normalized: normalized, Topic: original.ID().Hex()}
+			newEvent := &tmplEvent{Type: types[i], Original: original, Normalized: normalized, Topic: original.ID().Hex()}
 			events[original.Name] = newEvent
+			_, has := topics[newEvent.Topic]
+			if !has {
+				topics[newEvent.Topic] = newEvent
+			}
 		}
-
+		if len(bytecodes[i]) < 3 {
+			interfaces[types[i]] = &tmplContract{
+				Type:        capitalise(types[i]),
+				InputABI:    strings.Replace(strippedABI, "\"", "\\\"", -1),
+				InputBin:    strings.TrimPrefix(strings.TrimSpace(bytecodes[i]), "0x"),
+				Constructor: evmABI.Constructor,
+				Calls:       calls,
+				Transacts:   transacts,
+				Events:      events,
+				Libraries:   make(map[string]string),
+			}
+			continue
+		}
 		contracts[types[i]] = &tmplContract{
 			Type:        capitalise(types[i]),
 			InputABI:    strings.Replace(strippedABI, "\"", "\\\"", -1),
@@ -205,19 +232,17 @@ func Bind(types []string, abis []string, bytecodes []string, pkg string) (string
 			}
 		}
 	}
-	// Check if that type has already been identified as a library
-	for i := 0; i < len(types); i++ {
-		_, ok := isLib[types[i]]
-		contracts[types[i]].Library = ok
-	}
 	// Generate the contract template data content and render it
 	data := &tmplData{
 		Package:   pkg,
 		Contracts: contracts,
 		Libraries: libs,
 		Structs:   structs,
+		Events:    topics,
 	}
 	buffer := new(bytes.Buffer)
+	eventsBuffer := new(bytes.Buffer)
+	interfaceBuffer := new(bytes.Buffer)
 
 	funcs := map[string]interface{}{
 		"bindtype":      bindType[lang],
@@ -230,18 +255,35 @@ func Bind(types []string, abis []string, bytecodes []string, pkg string) (string
 	}
 	tmpl := template.Must(template.New("").Funcs(funcs).Parse(tmplSourceGo))
 	if err := tmpl.Execute(buffer, data); err != nil {
-		return "", err
+		return "", "", err
+	}
+	evTmpl := template.Must(template.New("").Funcs(funcs).Parse(eventsTmpl))
+	if err := evTmpl.Execute(eventsBuffer, data); err != nil {
+		return "", "", err
+	}
+	inTmpl := template.Must(template.New("").Funcs(funcs).Parse(interfaceTemplate))
+	if err := inTmpl.Execute(interfaceBuffer, data); err != nil {
+		return "", "", err
 	}
 	// For Go bindings pass the code through gofmt to clean it up
 	if lang == LangGo {
 		code, err := format.Source(buffer.Bytes())
 		if err != nil {
-			return "", fmt.Errorf("%v\n%s", err, buffer)
+			return "", "", fmt.Errorf("%v\n%s", err, buffer)
 		}
-		return string(code), nil
+		eventCode, err := format.Source(eventsBuffer.Bytes())
+		if err != nil {
+			return "", "", fmt.Errorf("%v\n%s", err, eventsBuffer)
+		}
+		interfaceCode, err := format.Source(interfaceBuffer.Bytes())
+		if err != nil {
+			return "", "", err
+		}
+		fmt.Println(string(interfaceCode))
+		return string(code), string(eventCode), nil
 	}
 	// For all others just return as is for now
-	return buffer.String(), nil
+	return buffer.String(), eventsBuffer.String(), nil
 }
 
 // bindType is a set of type binders that convert Solidity types to some supported

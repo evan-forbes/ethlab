@@ -3,6 +3,7 @@ package compile
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/evan-forbes/ethlab/cmd/abigen/bind"
@@ -20,24 +21,56 @@ func Compile(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	pkg := c.String("pkg")
+	if pkg == "" {
+		wkdir, err := os.Getwd()
+		if err != nil {
+			return errors.Wrap(err, "failure to compile, no package specified and could not read working directory")
+		}
+		pkg = isolatePkg(wkdir) // not the best idea because of of go's strict package naming
+	}
+	var (
+		types []string
+		abis  []string
+		bins  []string
+	)
 	for path, con := range contracts {
 		pathData := strings.Split(path, ":")
 		typeName := pathData[len(pathData)-1]
-		code, err := bind.Bind(
-			[]string{typeName},
-			[]string{con.Abi},
-			[]string{con.Bin},
-			"ens",
-		)
-		if err != nil {
-			return errors.Wrap(err, "failure to generate bindings during compilation")
+		// don't bother generating code for interfaces and libraries
+		if len(con.Bin) < 3 {
+			// generate interface code instead
+			continue
 		}
-		// write to file
-		filename := fmt.Sprintf("%s_gen.go", typeName)
-		err = ioutil.WriteFile(filename, []byte(code), 0644)
-		if err != nil {
-			return errors.Wrap(err, "failure to write file:")
-		}
+		types = append(types, typeName)
+		abis = append(abis, con.Abi)
+		bins = append(bins, con.Bin)
+	}
+	code, eventCode, err := bind.Bind(
+		types,
+		abis,
+		bins,
+		pkg,
+	)
+	if err != nil {
+		return errors.Wrap(err, "failure to generate bindings during compilation")
+	}
+	// write to file
+	filename := fmt.Sprintf("%s_gen.go", pkg)
+	err = ioutil.WriteFile(filename, []byte(code), 0644)
+	if err != nil {
+		return errors.Wrap(err, "failure to write file:")
+	}
+	filename = fmt.Sprintf("%s_events_gen.go", pkg)
+	err = ioutil.WriteFile(filename, []byte(eventCode), 0644)
+	if err != nil {
+		return errors.Wrap(err, "failure to write file:")
 	}
 	return nil
+}
+
+func isolatePkg(path string) string {
+	// todo: include windows support "\"
+	splt := strings.Split(path, "/")
+	return splt[len(splt)-1]
 }

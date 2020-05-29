@@ -7,7 +7,7 @@ import (
 	"github.com/evan-forbes/ethlab/cmd/abigen"
 	"github.com/evan-forbes/ethlab/cmd/boot"
 	"github.com/evan-forbes/ethlab/cmd/compile"
-	"github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v2"
 )
 
 // TODO:
@@ -81,7 +81,7 @@ func main() {
 		&cli.StringFlag{
 			Name:  "pkg, p",
 			Value: "",
-			Usage: "specify the package name",
+			Usage: "specify the package name (defaults to working directory)",
 		},
 		// &cli.StringFlag{
 		// 	Name:  "config, c",

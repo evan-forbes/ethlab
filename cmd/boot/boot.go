@@ -69,7 +69,7 @@ func Boot(c *cli.Context) error {
 	root.TxOpts.GasPrice = big.NewInt(1000)
 
 	// depoly the ethlab version of the ens
-	ensAddr, _, _, err := ens.DeployEns(root.TxOpts, client)
+	ensAddr, _, _, err := ens.DeployENS(root.TxOpts, client)
 	if err != nil {
 		log.Fatal("failed to deploy ENS ", err)
 	}
