@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/evan-forbes/ethlab/cmd"
 	"github.com/evan-forbes/ethlab/contracts/ens"
@@ -65,16 +65,23 @@ func Boot(c *cli.Context) error {
 
 	// prepare root to deploy the ethlab contracts
 	root := eth.Accounts["root"]
-	root.TxOpts.GasLimit = 1000000
-	root.TxOpts.GasPrice = big.NewInt(1000)
+	root.TxOpts.GasLimit = 1000000000
 
+	err = deployBaseContracts(client, root.TxOpts)
+	if err != nil {
+		return err
+	}
+
+	<-mngr.Done()
+	return nil
+}
+
+func deployBaseContracts(client *ethclient.Client, opts *bind.TransactOpts) error {
 	// depoly the ethlab version of the ens
-	ensAddr, _, _, err := ens.DeployENS(root.TxOpts, client)
+	ensAddr, _, _, err := ens.DeployENS(opts, client)
 	if err != nil {
 		log.Fatal("failed to deploy ENS ", err)
 	}
 	fmt.Println("ENS deployed: ", ensAddr.Hex())
-
-	<-mngr.Done()
 	return nil
 }

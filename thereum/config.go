@@ -77,6 +77,7 @@ func (c Config) Genesis() (core.Genesis, Accounts, error) {
 		}
 		accnts[name] = acc
 	}
+	accnts.SetGasPrice(big.NewInt(10000))
 	out.Alloc = accnts.Genesis()
 	return out, accnts, err
 }
@@ -87,7 +88,7 @@ func defaultGenesis() core.Genesis {
 	)
 	genesis := core.Genesis{
 		Config:     params.AllEthashProtocolChanges,
-		GasLimit:   10485760,
+		GasLimit:   104857600,
 		Alloc:      alloc,
 		Difficulty: new(big.Int).SetInt64(1),
 	}

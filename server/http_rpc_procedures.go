@@ -18,6 +18,10 @@ import (
 // 		Procedures
 ///////////////////////////
 
+// faucet facilitates handing out eth
+func faucet(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
+	return nil, nil
+}
 func nullProcedure(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	nullMessage := rpcMessage{
 		Version: "2.0",

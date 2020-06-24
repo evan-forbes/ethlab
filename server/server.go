@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 /* TODO:
@@ -56,6 +58,11 @@ func NewServer(ctx context.Context, addr string, back *thereum.Thereum) *Server 
 	// set write timeouts
 }
 
+// func (s *Server) faucetHandler() http.HandlerFunc {
+// 	return func (w http.ResponseWriter, r *http.Request) {
+// 		r.
+// 	}
+// }
 // rpcHandler returns the main http handler function that processes *all* rpc requests
 func (s *Server) rpcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -206,3 +213,53 @@ func rpcError(code int, msg string) []byte {
 
 // contract should just allow the owner to add an address
 // fees optional
+
+////////////////////////////////
+//	Faucet
+//////////////////////////////
+
+func RequestETH(host, address, pass string) error {
+
+	type payload struct {
+		Address  string `json:"address"`
+		Password string `json:"password"`
+	}
+
+	type response struct {
+		Message string `json:"message"`
+	}
+
+	data := payload{
+		Address:  address,
+		Password: pass,
+	}
+	payloadBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	body := bytes.NewReader(payloadBytes)
+
+	req, err := http.NewRequest("POST", host, body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	rawResp, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	var out response
+	json.Unmarshal(rawResp, &out)
+	if out.Message != "success" {
+		return errors.Errorf("failure to send eth: %s", out.Message)
+	}
+
+	return nil
+}

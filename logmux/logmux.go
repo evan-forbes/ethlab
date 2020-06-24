@@ -7,6 +7,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+/* TODO:
+- make a uniswap log muxer
+- maybe do something to pass the abi
+- maybe generate some code that specifically handles logs either a handler for each log for easy copy pasting
+- or or a specific data structure that only takes an abi to create, not a backend
+*/
+
 type Muxer struct {
 	Handlers map[string]Handler
 }
@@ -19,7 +26,7 @@ func (m *Muxer) Mux(ctx context.Context, wg *sync.WaitGroup, logs <-chan *types.
 		if !has {
 			continue // ignore log
 		}
-		go handler(ctx, l)
+		handler(ctx, l)
 	}
 }
 
