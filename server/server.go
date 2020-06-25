@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -53,6 +55,7 @@ func NewServer(ctx context.Context, addr string, back *thereum.Thereum) *Server 
 	}
 	// install the universal rpc handler to the router
 	srv.router.HandleFunc("/", srv.rpcHandler())
+	srv.router.HandleFunc("/requestETH")
 	srv.back = back
 	return srv
 	// set write timeouts
@@ -218,18 +221,55 @@ func rpcError(code int, msg string) []byte {
 //	Faucet
 //////////////////////////////
 
-func RequestETH(host, address, pass string) error {
+type faucetPay struct {
+	Address  string `json:"address"`
+	Password string `json:"password"`
+}
 
-	type payload struct {
-		Address  string `json:"address"`
-		Password string `json:"password"`
+type faucetResp struct {
+	Message string `json:"message"`
+}
+
+func (s *Server) faucetHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// read the body of the request
+		body, err := ioutil.ReadAll(r.Body)
+		defer r.Body.Close()
+		if err != nil {
+			resp, _ := json.Marshal(faucetResp{Message: err.Error()})
+			w.Write(resp)
+			return
+		}
+
+		// unmarshal the rpc request
+		var pay faucetPay
+		err = json.Unmarshal(body, &pay)
+		if err != nil {
+			resp, _ := json.Marshal(faucetResp{Message: err.Error()})
+			w.Write(resp)
+			return
+		}
+		// check if the recipient qualifies for free eth and the address is valid
+		root := s.back.Accounts["root"]
+		oneETH, _ := new(big.Int).SetString("1000000000000000000", 10)
+		tx, err := root.CreateSend(common.HexToAddress(pay.Address), oneETH)
+		if err != nil {
+			log.Printf("could not send one ETH upon request to %s: %s\n", pay.Address, err.Error())
+			return
+		}
+		err = s.back.AddTx(tx)
+		if err != nil {
+			log.Printf("could not send one ETH upon request to %s: %s failure to add transaction\n", pay.Address, err.Error())
+			return
+		}
+		return
 	}
+}
 
-	type response struct {
-		Message string `json:"message"`
-	}
+// RequestETH
+func RequestETH(host, address, pass string, amount *big.Int) error {
 
-	data := payload{
+	data := faucetPay{
 		Address:  address,
 		Password: pass,
 	}
@@ -239,7 +279,7 @@ func RequestETH(host, address, pass string) error {
 	}
 	body := bytes.NewReader(payloadBytes)
 
-	req, err := http.NewRequest("POST", host, body)
+	req, err := http.NewRequest("POST", host+"/requestETH", body)
 	if err != nil {
 		return err
 	}
@@ -255,7 +295,7 @@ func RequestETH(host, address, pass string) error {
 	if err != nil {
 		return err
 	}
-	var out response
+	var out faucetResp
 	json.Unmarshal(rawResp, &out)
 	if out.Message != "success" {
 		return errors.Errorf("failure to send eth: %s", out.Message)
