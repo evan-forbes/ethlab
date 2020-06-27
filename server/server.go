@@ -222,8 +222,8 @@ func rpcError(code int, msg string) []byte {
 //////////////////////////////
 
 type faucetPay struct {
-	Address  string `json:"address"`
-	Password string `json:"password"`
+	Address string   `json:"address"`
+	Amount  *big.Int `json:"amount"`
 }
 
 type faucetResp struct {
@@ -266,12 +266,11 @@ func (s *Server) faucetHandler() http.HandlerFunc {
 	}
 }
 
-// RequestETH
-func RequestETH(host, address, pass string, amount *big.Int) error {
+// RequestETH asks the server to dish out some eth to an address
+func RequestETH(host, address string, amount *big.Int) error {
 
 	data := faucetPay{
-		Address:  address,
-		Password: pass,
+		Address: address,
 	}
 	payloadBytes, err := json.Marshal(data)
 	if err != nil {

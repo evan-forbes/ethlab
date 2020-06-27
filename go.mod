@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/0xProject/go-ethereum v1.8.7
+	github.com/bradleyjkemp/cupaloy v2.3.0+incompatible // indirect
 	github.com/ethereum/go-ethereum v1.9.12
 	github.com/evan-forbes/buddy v0.0.0-20200227200140-42299f5d889a
 	github.com/gorilla/mux v1.7.4
