@@ -128,6 +128,15 @@ func New{{.Type}}(address common.Address, backend bind.ContractBackend) (*{{.Typ
 //		Deployment
 ////////////////////////////////////////////////////
 
+// Deploy installs {{.Type}} to an ethereum node via the user provided
+// by implementing module.Delpoyer
+func Deploy(u *module.User) (addr common.Address, err error) {
+	*******************************************************
+	////////  INSERT MODULE DEPLOYMENT CODE HERE   ////////
+	*******************************************************
+	return addr, err
+}
+
 // Deploy{{.Type}} deploys a new Ethereum contract, binding an instance of {{.Type}} to it.
 func Deploy{{.Type}}(auth *bind.TransactOpts, backend bind.ContractBackend {{range .Constructor.Inputs}}, {{.Name}} {{bindtype .Type $structs}}{{end}}) (common.Address, *types.Transaction, *{{.Type}}, error) {
   parsed, err := abi.JSON(strings.NewReader({{.Type}}ABI))

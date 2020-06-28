@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/evan-forbes/ethlab/module"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -43,6 +44,14 @@ func NewENS(address common.Address, backend bind.ContractBackend) (*ENS, error) 
 //////////////////////////////////////////////////////
 //		Deployment
 ////////////////////////////////////////////////////
+
+// Deploy connects to a blockchain and installs ENS via
+// the compiled binary and abi by implementing module.Delpoyer
+func Deploy(u *module.User) (common.Address, error) {
+	addr, _, _, err := DeployENS(u.NewTxOpts(), u.Client)
+	// INSERT MODULE DEPLOYMENT CODE HERE
+	return addr, err
+}
 
 // DeployENS deploys a new Ethereum contract, binding an instance of ENS to it.
 func DeployENS(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *ENS, error) {

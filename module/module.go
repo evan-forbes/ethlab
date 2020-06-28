@@ -12,16 +12,21 @@ import (
 	"github.com/evan-forbes/ethlab/server"
 )
 
-// Module descibes a deployment script that can be
-// compiled
-type Module interface {
-	Deploy() error
-}
+type Deployer func(client *ethclient.Client, txopts *bind.TransactOpts) (common.Address, error)
 
 type User struct {
 	Client *ethclient.Client
 	priv   *ecdsa.PrivateKey
 	from   common.Address
+}
+
+func (u *User) Deploy(deps ...Deployer) error {
+	for _, dep := range deps {
+		err := dep(u.Client, u.NewTxOpts(0, nil))
+		if err != nil {
+			return err
+		}
+	}
 }
 
 // NewUser inits a new user
@@ -58,15 +63,9 @@ func StarterKit(host string) (*User, error) {
 
 // NewTxOpts issues a new transact opt with sane defaults for
 // user u
-func (u *User) NewTxOpts(gasLim uint64, gasPrice *big.Int) *bind.TransactOpts {
+func (u *User) NewTxOpts() *bind.TransactOpts {
 	out := bind.NewKeyedTransactor(u.priv)
-	out.GasLimit = gasLim
-	out.GasPrice = gasPrice
-	if gasLim == 0 {
-		out.GasLimit = 3000000
-	}
-	if gasPrice == nil || gasPrice.Cmp(big.NewInt(0)) == 0 {
-		out.GasPrice = big.NewInt(10000000)
-	}
+	out.GasLimit = 3000000
+	out.GasPrice = big.NewInt(10000000)
 	return out
 }
