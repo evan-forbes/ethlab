@@ -12,7 +12,7 @@ import (
 	"github.com/evan-forbes/ethlab/server"
 )
 
-type Deployer func(client *ethclient.Client, txopts *bind.TransactOpts) (common.Address, error)
+type Deployer func(u *User) (common.Address, error)
 
 type User struct {
 	Client *ethclient.Client
@@ -22,7 +22,7 @@ type User struct {
 
 func (u *User) Deploy(deps ...Deployer) error {
 	for _, dep := range deps {
-		err := dep(u.Client, u.NewTxOpts(0, nil))
+		_, err := dep(u)
 		if err != nil {
 			return err
 		}
@@ -39,7 +39,7 @@ func NewUser() (*User, error) {
 	out := &User{
 		priv: priv,
 	}
-	txopts := out.NewTxOpts(300000000, big.NewInt(10000000))
+	txopts := out.NewTxOpts()
 	out.from = txopts.From
 	return out, nil
 }
