@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,9 +12,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/evan-forbes/ethlab/contracts/ens"
+	"github.com/evan-forbes/ethlab/module"
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 /* TODO:
@@ -55,17 +55,18 @@ func NewServer(ctx context.Context, addr string, back *thereum.Thereum) *Server 
 	}
 	// install the universal rpc handler to the router
 	srv.router.HandleFunc("/", srv.rpcHandler())
-	srv.router.HandleFunc("/requestETH")
+	srv.router.HandleFunc("/requestETH", srv.faucetHandler())
+	var ens ensHandler
+	err := ens.Install("http://" + addr)
+	if err != nil {
+		log.Fatalf("failure to deploy ens contract %s", err)
+	}
+	srv.router.HandleFunc("/ens", ens.Handle)
 	srv.back = back
 	return srv
 	// set write timeouts
 }
 
-// func (s *Server) faucetHandler() http.HandlerFunc {
-// 	return func (w http.ResponseWriter, r *http.Request) {
-// 		r.
-// 	}
-// }
 // rpcHandler returns the main http handler function that processes *all* rpc requests
 func (s *Server) rpcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -208,29 +209,50 @@ func rpcError(code int, msg string) []byte {
 //	Ethereum Naming Server
 //////////////////////////////
 
-// save the names of deployed contracts
-// provide access to other contracts?
-// simply return the address of the ens
-// then send a contract request to the node of that address asking
-// for the address of "uniswap-factory" etc
+type ensHandler struct {
+	address  common.Address
+	deployed bool
+}
 
-// contract should just allow the owner to add an address
-// fees optional
+func (e *ensHandler) Install(host string) error {
+	usr, err := module.StarterKit(host)
+	if err != nil {
+		return err
+	}
+	addr, err := ens.Deploy(usr)
+	if err != nil {
+		return err
+	}
+	e.address = addr
+	e.deployed = true
+	return nil
+}
+
+// Handle responds to an http request with the address of the ENS contract
+func (e *ensHandler) Handle(w http.ResponseWriter, r *http.Request) {
+	_, err := w.Write([]byte(e.address.Hex()))
+	if err != nil {
+		log.Println("failure to respond via ens handler:", err)
+		return
+	}
+	return
+}
 
 ////////////////////////////////
 //	Faucet
 //////////////////////////////
 
-type faucetPay struct {
-	Address string   `json:"address"`
-	Amount  *big.Int `json:"amount"`
-}
-
-type faucetResp struct {
-	Message string `json:"message"`
-}
-
 func (s *Server) faucetHandler() http.HandlerFunc {
+
+	type faucetPay struct {
+		Address string   `json:"address"`
+		Amount  *big.Int `json:"amount"`
+	}
+
+	type faucetResp struct {
+		Message string `json:"message"`
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		// read the body of the request
 		body, err := ioutil.ReadAll(r.Body)
@@ -262,43 +284,12 @@ func (s *Server) faucetHandler() http.HandlerFunc {
 			log.Printf("could not send one ETH upon request to %s: %s failure to add transaction\n", pay.Address, err.Error())
 			return
 		}
+		resp, _ := json.Marshal(faucetResp{Message: "success"})
+		_, err = w.Write(resp)
+		if err != nil {
+			log.Println("failure to respond with successful faucet response:", err)
+			return
+		}
 		return
 	}
-}
-
-// RequestETH asks the server to dish out some eth to an address
-func RequestETH(host, address string, amount *big.Int) error {
-
-	data := faucetPay{
-		Address: address,
-	}
-	payloadBytes, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	body := bytes.NewReader(payloadBytes)
-
-	req, err := http.NewRequest("POST", host+"/requestETH", body)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	rawResp, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	var out faucetResp
-	json.Unmarshal(rawResp, &out)
-	if out.Message != "success" {
-		return errors.Errorf("failure to send eth: %s", out.Message)
-	}
-
-	return nil
 }
