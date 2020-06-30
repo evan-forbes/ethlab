@@ -1,9 +1,10 @@
 package module
 
-import "testing"
+import (
+	"testing"
+)
 
 // modules run
-
 func TestModule(t *testing.T) {
 
 }

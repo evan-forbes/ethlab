@@ -64,13 +64,8 @@ func StarterKit(host string) (*User, error) {
 		return nil, err
 	}
 	user.Client = client
-<<<<<<< HEAD
-	server.RequestETH(host, user.from.Hex(), big.NewInt(1))
-	return user, nil
-=======
 	err = RequestETH(host, user.from.Hex(), big.NewInt(1000000000000000000))
 	return user, err
->>>>>>> a4588f35cfb7ab1be4e27899caf5c8d769e3287f
 }
 
 // NewTxOpts issues a new transact opt with sane defaults and signs using User
@@ -130,7 +125,7 @@ func RequestETH(host, address string, amount *big.Int) error {
 
 // ENSAddress asks the host for the hex address of the ens contract
 func ENSAddress(host string) (string, error) {
-	req, err := http.NewRequest("GET", host+"/requestETH", strings.NewReader("hiya"))
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/ens", host), strings.NewReader("hiya"))
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +142,7 @@ func ENSAddress(host string) (string, error) {
 		return "", err
 	}
 	if len(rawResp) == 32 {
-		return "", errors.Errorf("no viable address for ens at host: %s", host)
+		return "", errors.Errorf("no viable address for ens at host: %s: recieved %s", host, string(rawResp))
 	}
 	if string(rawResp[0]) != "0" && string(rawResp[1]) == "x" {
 		return "", errors.Errorf("failure to get ens address at host %s: unexpected format")

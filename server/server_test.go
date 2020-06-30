@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/evan-forbes/ethlab/cmd"
+	"github.com/evan-forbes/ethlab/module"
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/matryer/is"
 )
@@ -277,10 +278,17 @@ func TestStream(t *testing.T) {
 	mngr.WG.Wait()
 }
 
-func TestDeployContract(t *testing.T) {
-
+func TestENSHandler(t *testing.T) {
+	mngr := cmd.NewManager(context.Background(), nil)
+	go mngr.Listen()
+	_, err := LaunchServer(mngr.Ctx, mngr.WG)
+	if err != nil {
+		t.Error(err)
+	}
+	addr, err := module.ENSAddress("127.0.0.1:8000")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(addr)
+	<-mngr.Done()
 }
-
-//  ethlab boot -ws
-//  ethlab compile
-//  ethlab

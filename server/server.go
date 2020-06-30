@@ -12,10 +12,11 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/evan-forbes/ethlab/contracts/ens"
-	"github.com/evan-forbes/ethlab/module"
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 /* TODO:
@@ -35,6 +36,36 @@ type Server struct {
 	muxer  *muxer           // connects msg to procedure
 	back   *thereum.Thereum // backend to serve
 	ctx    context.Context
+	ens    common.Address
+}
+
+// LaunchServer creates a new thereum backend with sane defaults and a launched
+// version of ens TODO: use a dang config file
+func LaunchServer(ctx context.Context, wg *sync.WaitGroup) (*Server, error) {
+	// start the backend
+	eth, err := thereum.New(thereum.DefaultConfig(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failure to launch server")
+	}
+	wg.Add(1)
+	go eth.Run(ctx, wg)
+
+	// start serving the backend via http and ws
+	srvr := NewServer(ctx, "127.0.0.1:8000", eth)
+	go func() {
+		log.Fatal(srvr.ListenAndServe())
+	}()
+	go func() {
+		log.Fatal(srvr.ServeWS("127.0.0.1:8001"))
+	}()
+	// wait a hot second for the server to be fully functional
+	time.Sleep(50 * time.Millisecond)
+	err = srvr.InstallENS()
+	if err != nil {
+		return nil, err
+	}
+
+	return srvr, nil
 }
 
 // NewServer issues a new server with the rpc handler already registered
@@ -56,15 +87,10 @@ func NewServer(ctx context.Context, addr string, back *thereum.Thereum) *Server 
 	// install the universal rpc handler to the router
 	srv.router.HandleFunc("/", srv.rpcHandler())
 	srv.router.HandleFunc("/requestETH", srv.faucetHandler())
-	var ens ensHandler
-	err := ens.Install("http://" + addr)
-	if err != nil {
-		log.Fatalf("failure to deploy ens contract %s", err)
-	}
-	srv.router.HandleFunc("/ens", ens.Handle)
+
+	srv.router.HandleFunc("/ens", srv.ENSHandler)
 	srv.back = back
 	return srv
-	// set write timeouts
 }
 
 // rpcHandler returns the main http handler function that processes *all* rpc requests
@@ -209,28 +235,24 @@ func rpcError(code int, msg string) []byte {
 //	Ethereum Naming Server
 //////////////////////////////
 
-type ensHandler struct {
-	address  common.Address
-	deployed bool
-}
-
-func (e *ensHandler) Install(host string) error {
-	usr, err := module.StarterKit(host)
+// InstallENS deploys the ens contract as root
+func (s *Server) InstallENS() error {
+	// deploy the ens contract from the root account
+	root := s.back.Accounts["root"]
+	root.TxOpts.GasLimit = 300000
+	root.TxOpts.GasPrice = big.NewInt(100000000)
+	client, err := ethclient.Dial(fmt.Sprintf("http://%s", s.Addr))
 	if err != nil {
 		return err
 	}
-	addr, err := ens.Deploy(usr)
-	if err != nil {
-		return err
-	}
-	e.address = addr
-	e.deployed = true
-	return nil
+	addr, _, _, err := ens.DeployENS(root.TxOpts, client)
+	s.ens = addr
+	return err
 }
 
-// Handle responds to an http request with the address of the ENS contract
-func (e *ensHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	_, err := w.Write([]byte(e.address.Hex()))
+// ENSHandler responds to an http request with the address of the ENS contract
+func (s *Server) ENSHandler(w http.ResponseWriter, r *http.Request) {
+	_, err := w.Write([]byte(s.ens.Hex()))
 	if err != nil {
 		log.Println("failure to respond via ens handler:", err)
 		return
