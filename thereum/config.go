@@ -101,7 +101,7 @@ func DefaultConfig() Config {
 		InMemory:      true,
 		GenesisConfig: defaultGenesis(),
 		Allocation: map[string]string{
-			"root":   "999999999999999999999999999999",
+			"root":   "999999999999999999999999999999999",
 			"Alice":  "10000000000000000000",
 			"Bob":    "10000000000000000000",
 			"Celine": "10000000000000000000",

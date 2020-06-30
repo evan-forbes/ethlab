@@ -21,17 +21,7 @@ import (
 	"github.com/evan-forbes/ethlab/txpool"
 )
 
-//
-
-// TODO: have "linked" transactions in order to simulate proxy contract!
-
-/*
-so far the appears to be
-- incorporate txpool into something similar to the simulated backend.
-- add auto run
-*/
-
-// Thereum contains and controls the processes needed to run a fast single node
+// Thereum contains and controls the processes needed to run a single node
 // PoA ethereum blockchain.
 type Thereum struct {
 	ctx      context.Context
