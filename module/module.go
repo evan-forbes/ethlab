@@ -59,12 +59,12 @@ func StarterKit(host string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := ethclient.Dial(host)
+	client, err := ethclient.Dial(fmt.Sprintf("http://%s", host))
 	if err != nil {
 		return nil, err
 	}
 	user.Client = client
-	err = RequestETH(host, user.from.Hex(), big.NewInt(1000000000000000000))
+	err = RequestETH(host, user.from.Hex(), big.NewInt(1))
 	return user, err
 }
 
@@ -73,7 +73,7 @@ func StarterKit(host string) (*User, error) {
 func (u *User) NewTxOpts() *bind.TransactOpts {
 	out := bind.NewKeyedTransactor(u.priv)
 	out.GasLimit = 3000000
-	out.GasPrice = big.NewInt(10000000)
+	out.GasPrice = big.NewInt(10000)
 	return out
 }
 
@@ -98,7 +98,7 @@ func RequestETH(host, address string, amount *big.Int) error {
 	}
 	body := bytes.NewReader(payloadBytes)
 
-	req, err := http.NewRequest("POST", host+"/requestETH", body)
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/requestETH", host), body)
 	if err != nil {
 		return err
 	}

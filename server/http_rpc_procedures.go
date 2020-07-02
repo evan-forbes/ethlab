@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -113,6 +114,79 @@ func getTxReceipt(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 		Version: "2.0",
 		ID:      1,
 		Result:  receipt,
+	}
+	return out, nil
+}
+
+// getTxCount returns the number of transaction sent from an address at a given
+// block
+func getTxCount(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
+	// "params":["0x407d73d8a49eeb85d32cf465507dd71d507100c1","latest"]
+	var params []interface{}
+	err := json.Unmarshal(msg.Params, &params)
+	if err != nil {
+		return nil, err
+	}
+	if len(params) != 2 {
+		return nil, errors.New("2 arguments needed in parameters")
+	}
+	hexAddr, ok := params[0].(string)
+	if !ok {
+		return nil, errors.New("first arg in params must be a string representing an address")
+	}
+	addr := common.HexToAddress(hexAddr)
+
+	hexHash, ok := params[1].(string)
+	if !ok {
+		return nil, errors.New("block numbers not yet supported, try a block hash")
+	}
+	// type switch, to add numbers later?
+	var hsh common.Hash
+	if hexHash == "latest" {
+		hsh = eth.LatestBlock().Hash()
+	} else {
+		hsh = common.HexToHash(hexHash)
+	}
+	count, err := eth.TransactionCountByAddress(context.Background(), addr, hsh)
+	if err != nil {
+		return nil, err
+	}
+	out := &rpcMessage{
+		Version: "2.0",
+		ID:      1,
+		Result:  count,
+	}
+	return out, nil
+}
+
+func getBalanceAt(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
+	// "params":["0x407d73d8a49eeb85d32cf465507dd71d507100c1", "latest"]
+	var params []interface{}
+	err := json.Unmarshal(msg.Params, &params)
+	if err != nil {
+		return nil, err
+	}
+	if len(params) != 2 {
+		return nil, errors.New("2 arguments needed in parameters")
+	}
+	hexAddr, ok := params[0].(string)
+	if !ok {
+		return nil, errors.New("first arg in params must be a string representing an address")
+	}
+	addr := common.HexToAddress(hexAddr)
+
+	// hexHash, ok := params[1].(string)
+	// if !ok {
+	// 	return nil, errors.New("block numbers not yet supported, try a block hash")
+	// }
+	bal, err := eth.BalanceAt(context.Background(), addr, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := &rpcMessage{
+		Version: "2.0",
+		ID:      1,
+		Result:  fmt.Sprintf("0x%x", bal),
 	}
 	return out, nil
 }

@@ -97,7 +97,7 @@ func NewServer(ctx context.Context, addr string, back *thereum.Thereum) *Server 
 func (s *Server) rpcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// add the header to the response
-		// w.Header().Set("content-type", "application/json")
+		w.Header().Set("content-type", "application/json")
 
 		// read the body of the request
 		body, err := ioutil.ReadAll(r.Body)
@@ -117,10 +117,13 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 			return
 		}
 
+		fmt.Println("method", req.Method)
+
 		// use the method's procdure to perform the remote procedure call
 		pro, has := s.muxer.Route(req.Method)
 		if !has {
 			log.Println("no procedure for method: ", req.Method)
+			fmt.Println("no procedure for method: ", req.Method)
 			w.Write(rpcError(0, fmt.Sprintf("method %s not supported", req.Method)))
 			return
 		}
@@ -170,11 +173,12 @@ func newMuxer() *muxer {
 			"eth_protocolVersion":       nullProcedure,
 			"eth_gasPrice":              nullProcedure,
 			"eth_blockNumber":           nullProcedure,
-			"eth_getBalance":            nullProcedure,
+			"eth_getBalance":            getBalanceAt,
 			"eth_getStorageAt":          nullProcedure,
 			"eth_sendTransaction":       sendRawTx, // account management shouldn't really be a feature
 			"eth_sendRawTransaction":    sendRawTx,
 			"eth_getTransactionReceipt": getTxReceipt,
+			"eth_getTransactionCount":   getTxCount,
 			"eth_call":                  nullProcedure,
 			"eth_getLogs":               nullProcedure,
 			"eth_getFilterLogs":         nullProcedure,
@@ -265,7 +269,6 @@ func (s *Server) ENSHandler(w http.ResponseWriter, r *http.Request) {
 //////////////////////////////
 
 func (s *Server) faucetHandler() http.HandlerFunc {
-
 	type faucetPay struct {
 		Address string   `json:"address"`
 		Amount  *big.Int `json:"amount"`
@@ -315,3 +318,6 @@ func (s *Server) faucetHandler() http.HandlerFunc {
 		return
 	}
 }
+
+// I need to make sure that the balance is actually being sent? I think I did this at some
+// point in time but accidently deleted it...

@@ -289,6 +289,5 @@ func TestENSHandler(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(addr)
 	<-mngr.Done()
 }

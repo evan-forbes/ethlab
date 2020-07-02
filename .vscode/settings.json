@@ -1,12 +1,1 @@
-{
-    "colorTabs.titleBackground": true,
-    "colorTabs.config": [
-        {
-            "regex": "(.*/cmd/.*)",
-            "color": "#63b061"
-        },
-        {
-            "regex": ".*/mobile/.*"
-        },
-    ]
-}
+{}

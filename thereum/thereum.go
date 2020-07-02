@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -172,6 +173,7 @@ func (t *Thereum) AddTx(tx *types.Transaction) error {
 		return fmt.Errorf("could not validate transaction: %s", err)
 	}
 	t.txPool.Insert(from, tx)
+	fmt.Println("added tx", tx.Hash().Hex())
 	return nil
 }
 
@@ -246,6 +248,77 @@ func (t *Thereum) LatestBlock() *types.Block {
 func (t *Thereum) Shutdown(wg *sync.WaitGroup) {
 	defer wg.Done()
 	t.blockchain.Stop()
+}
+
+// TransactionCount returns the number of transactions in a given block
+func (t *Thereum) TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if blockHash == t.latestBlock.Hash() {
+		t.latestBlock.Transactions()
+		return uint(t.latestBlock.Transactions().Len()), nil
+	}
+
+	block := t.blockchain.GetBlockByHash(blockHash)
+	if block == nil {
+		return uint(0), errors.New("block does not exist")
+	}
+
+	return uint(block.Transactions().Len()), nil
+}
+
+// TransactionCountByAddress returns the number of transactions sent by an address at a given block
+func (t *Thereum) TransactionCountByAddress(ctx context.Context, addr common.Address, blockHash common.Hash) (*hexutil.Uint64, error) {
+	state, err := t.blockchain.StateAt(blockHash)
+	if err != nil {
+		return nil, err
+	}
+	count := state.GetNonce(addr)
+	return (*hexutil.Uint64)(&count), state.Error()
+}
+
+// stateByBlockNumber retrieves a state by a given blocknumber.
+func (t *Thereum) stateByBlockNumber(ctx context.Context, blockNumber *big.Int) (*state.StateDB, error) {
+	if blockNumber == nil || blockNumber.Cmp(t.blockchain.CurrentBlock().Number()) == 0 {
+		return t.blockchain.State()
+	}
+	block, err := t.BlockByNumber(ctx, blockNumber)
+	if err != nil {
+		return nil, err
+	}
+	return t.blockchain.StateAt(block.Hash())
+}
+
+// BlockByNumber retrieves a block from the database by number, caching it
+// (associated with its hash) if found.
+func (t *Thereum) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if number == nil || number.Cmp(t.latestBlock.Number()) == 0 {
+		return t.blockchain.CurrentBlock(), nil
+	}
+
+	block := t.blockchain.GetBlockByNumber(uint64(number.Int64()))
+	if block == nil {
+		return nil, errors.New("block does not exist")
+	}
+
+	return block, nil
+}
+
+// BalanceAt returns the wei balance of a certain account in the blockchain.
+func (t *Thereum) BalanceAt(ctx context.Context, contract common.Address, blockNumber *big.Int) (*big.Int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	statedb, err := t.stateByBlockNumber(ctx, blockNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	return statedb.GetBalance(contract), nil
 }
 
 const (
