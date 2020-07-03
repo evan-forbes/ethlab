@@ -285,9 +285,29 @@ func TestENSHandler(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	addr, err := module.ENSAddress("127.0.0.1:8000")
+	_, err = module.ENSAddress("127.0.0.1:8000")
 	if err != nil {
 		t.Error(err)
 	}
-	<-mngr.Done()
+}
+
+/*
+I need to use users instead of thereum accounts for root
+its simpler one, and two it increments nonce every use.
+*/
+
+func TestGetNonce(t *testing.T) {
+	mngr := cmd.NewManager(context.Background(), nil)
+	go mngr.Listen()
+	_, err := LaunchServer(mngr.Ctx, mngr.WG)
+	if err != nil {
+		t.Error(err)
+	}
+	client, err := ethclient.Dial("http://127.0.0.1:8000")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	usr, err := module.NewUser()
+	client.NonceAt(mngr.Ctx, usr.NewTxOpts().From, nil)
 }

@@ -25,6 +25,7 @@ type User struct {
 	Client *ethclient.Client
 	priv   *ecdsa.PrivateKey
 	from   common.Address
+	nonce  *big.Int
 }
 
 // Deploy runs multiple deploy functions using user u's private key
@@ -46,10 +47,12 @@ func NewUser() (*User, error) {
 		return nil, err
 	}
 	out := &User{
-		priv: priv,
+		priv:  priv,
+		nonce: big.NewInt(1),
 	}
 	txopts := out.NewTxOpts()
 	out.from = txopts.From
+
 	return out, nil
 }
 
@@ -72,8 +75,12 @@ func StarterKit(host string) (*User, error) {
 // u's private key
 func (u *User) NewTxOpts() *bind.TransactOpts {
 	out := bind.NewKeyedTransactor(u.priv)
-	out.GasLimit = 3000000
+	out.GasLimit = 300000
 	out.GasPrice = big.NewInt(10000)
+	// increment and update the nonce
+	nonce := new(big.Int).Add(u.nonce, big.NewInt(1))
+	u.nonce = nonce
+	out.Nonce = nonce
 	return out
 }
 

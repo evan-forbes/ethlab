@@ -278,6 +278,14 @@ func (t *Thereum) TransactionCountByAddress(ctx context.Context, addr common.Add
 	return (*hexutil.Uint64)(&count), state.Error()
 }
 
+func (t *Thereum) GetNonce(addr common.Address) (uint64, error) {
+	state, err := t.blockchain.StateAt(t.latestBlock.Hash())
+	if err != nil {
+		return 0, err
+	}
+	return state.GetNonce(addr), nil
+}
+
 // stateByBlockNumber retrieves a state by a given blocknumber.
 func (t *Thereum) stateByBlockNumber(ctx context.Context, blockNumber *big.Int) (*state.StateDB, error) {
 	if blockNumber == nil || blockNumber.Cmp(t.blockchain.CurrentBlock().Number()) == 0 {
