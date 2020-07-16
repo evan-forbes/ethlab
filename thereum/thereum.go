@@ -39,7 +39,7 @@ type Thereum struct {
 	mu sync.Mutex
 
 	// use the locked wrapper methods to access these!
-	// no one like global state, but I also don't appreciate how they're returned from the ethereum data structure, blockchain
+	// I hate global state, I also don't appreciate how they're returned from the ethereum data structure, blockchain
 	latestBlock *types.Block   // pending block
 	latestState *state.StateDB // pending state
 
@@ -135,10 +135,11 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 		func(i int, b *core.BlockGen) {
 			b.SetCoinbase(t.root.Address)
 			// get the next set of highest paying transactions
-			txs := txpool.Batch(t.gasLimit, t.txPool)
+			txs := t.txPool.Batch(t.gasLimit)
 			// add them to the new block.
 			for _, tx := range txs {
 				b.AddTxWithChain(t.blockchain, tx)
+				fmt.Println("tx added to block", tx.Hash().Hex(), "Pool size", t.txPool.Len())
 			}
 		},
 	)
@@ -278,6 +279,7 @@ func (t *Thereum) TransactionCountByAddress(ctx context.Context, addr common.Add
 	return (*hexutil.Uint64)(&count), state.Error()
 }
 
+// GetNonce retrieves the lowest excepted nonce of an address
 func (t *Thereum) GetNonce(addr common.Address) (uint64, error) {
 	state, err := t.blockchain.StateAt(t.latestBlock.Hash())
 	if err != nil {

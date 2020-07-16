@@ -40,6 +40,10 @@ func NewLinkedPool() *LinkedPool {
 	}
 }
 
+func (pool *LinkedPool) Len() int {
+	return len(pool.order)
+}
+
 // next retrieves the highest priced transaction/set of transactions
 func (pool *LinkedPool) next() (txSet, bool) {
 	if len(pool.order) == 0 {
@@ -140,10 +144,6 @@ func (pool *LinkedPool) Insert(author common.Address, txs ...*types.Transaction)
 		return
 	}
 
-	if len(pool.order) == 1 {
-
-	}
-
 	// insert the transaction into the ordered set
 	i := search(pool.order, gsprc)
 	pool.order = append(pool.order, nil)
@@ -152,8 +152,10 @@ func (pool *LinkedPool) Insert(author common.Address, txs ...*types.Transaction)
 	return
 }
 
+// The batching function could be causing a single tx to be stuck in the pool, because the gas limit is too high
+
 // Batch will get the maximum transactions from a linked pool for the provided gas limit
-func Batch(gasLimit uint64, pool *LinkedPool) []*types.Transaction {
+func (pool *LinkedPool) Batch(gasLimit uint64) []*types.Transaction {
 	var gasCount uint64
 	var out []*types.Transaction
 	for {

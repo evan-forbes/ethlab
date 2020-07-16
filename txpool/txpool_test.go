@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/evan-forbes/ethlab/module"
 	"github.com/matryer/is"
 )
 
@@ -39,6 +40,35 @@ func TestInsert(t *testing.T) {
 	if regurge == nil {
 		t.Error("tx not returned")
 	}
+}
+
+func TestInsertMany(t *testing.T) {
+	// make a bunch of transactions
+	sender, err := module.NewUser()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	recvr, err := module.NewUser()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	// Make a bunch of txs (these don't need to be valid txs for this test)
+	var txs []*types.Transaction
+	for i := 0; i < 100; i++ {
+		tx, err := sender.NewSend(recvr.NewTxOpts().From, big.NewInt(10000000000000), big.NewInt(1000000000+int64(i)), 300000)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		txs = append(txs, tx)
+	}
+	pool := NewLinkedPool()
+	for i := 0; i < len(txs); i++ {
+		pool.Insert(sender.From, txs[i])
+	}
+	fmt.Println("pool size", pool.Len())
 }
 
 func TestPlace(t *testing.T) {
@@ -121,8 +151,8 @@ func TestBatching(t *testing.T) {
 		}
 		pool.Insert(from, tx)
 	}
-	btxs := Batch(120000, pool)
-	bbtx := Batch(120000, pool)
+	btxs := pool.Batch(120000)
+	bbtx := pool.Batch(120000)
 	fmt.Println(btxs)
 	fmt.Println(bbtx)
 

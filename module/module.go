@@ -2,6 +2,7 @@ package module
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
@@ -24,7 +26,7 @@ type Deployer func(u *User) (common.Address, error)
 type User struct {
 	Client *ethclient.Client
 	priv   *ecdsa.PrivateKey
-	from   common.Address
+	From   common.Address
 	nonce  *big.Int
 }
 
@@ -51,7 +53,7 @@ func NewUser() (*User, error) {
 		nonce: big.NewInt(1),
 	}
 	txopts := out.NewTxOpts()
-	out.from = txopts.From
+	out.From = txopts.From
 
 	return out, nil
 }
@@ -67,8 +69,12 @@ func StarterKit(host string) (*User, error) {
 		return nil, err
 	}
 	user.Client = client
-	err = RequestETH(host, user.from.Hex(), big.NewInt(1))
+	err = RequestETH(host, user.From.Hex(), big.NewInt(1000000000000000000))
 	return user, err
+}
+
+func (u *User) Balance() (*big.Int, error) {
+	return u.Client.BalanceAt(context.Background(), u.From, nil)
 }
 
 // NewTxOpts issues a new transact opt with sane defaults and signs using User
@@ -82,6 +88,21 @@ func (u *User) NewTxOpts() *bind.TransactOpts {
 	u.nonce = nonce
 	out.Nonce = nonce
 	return out
+}
+
+// NewSend creates a signed transaction to send ETH
+func (u *User) NewSend(to common.Address, amount, price *big.Int, lim uint64) (*types.Transaction, error) {
+	txopts := u.NewTxOpts()
+	txopts.GasLimit = lim
+	txopts.GasPrice = price
+	txopts.Value = amount
+	utx := types.NewTransaction(txopts.Nonce.Uint64(), to, amount, lim, price, nil)
+	return u.Sign(utx)
+}
+
+// Sign uses user data to sign a transaction
+func (u *User) Sign(tx *types.Transaction) (*types.Transaction, error) {
+	return types.SignTx(tx, types.NewEIP155Signer(big.NewInt(1)), u.priv)
 }
 
 // RequestETH asks the server to dish out some eth to an address
@@ -98,6 +119,7 @@ func RequestETH(host, address string, amount *big.Int) error {
 
 	data := faucetPay{
 		Address: address,
+		Amount:  amount,
 	}
 	payloadBytes, err := json.Marshal(data)
 	if err != nil {

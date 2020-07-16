@@ -191,6 +191,10 @@ func getBalanceAt(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	return out, nil
 }
 
+func getNonce(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
+	return nil, nil
+}
+
 // func (p *sendTxParams) UnmarshalJSON(in []byte) error {
 // 	type params struct {
 // 		From     string `json:"from"`
