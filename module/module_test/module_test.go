@@ -25,7 +25,12 @@ func TestRequestETH(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	err = module.RequestETH("127.0.0.1:8000", usr.NewTxOpts().From.Hex(), big.NewInt(1))
+	err = module.RequestETH("127.0.0.1:8000", usr.NewTxOpts().From.Hex(), big.NewInt(2000000000000000000))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = module.RequestETH("127.0.0.1:8000", usr.NewTxOpts().From.Hex(), big.NewInt(2000000000000000000))
 	if err != nil {
 		t.Error(err)
 		return
@@ -35,7 +40,7 @@ func TestRequestETH(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	time.Sleep(time.Millisecond * 50)
+	// time.Sleep(time.Millisecond * 500)
 	bal, err := client.BalanceAt(mngr.Ctx, usr.NewTxOpts().From, nil)
 	if err != nil {
 		t.Error(err)

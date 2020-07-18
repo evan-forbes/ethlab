@@ -69,6 +69,10 @@ func TestInsertMany(t *testing.T) {
 		pool.Insert(sender.From, txs[i])
 	}
 	fmt.Println("pool size", pool.Len())
+	for i, tx := range pool.Batch(10000000) {
+		fmt.Printf("tx number %d:\n gas %d price %s \n", i, tx.Gas(), tx.GasPrice().String())
+		fmt.Println(pool.Len())
+	}
 }
 
 func TestPlace(t *testing.T) {

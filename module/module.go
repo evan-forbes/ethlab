@@ -81,8 +81,8 @@ func (u *User) Balance() (*big.Int, error) {
 // u's private key
 func (u *User) NewTxOpts() *bind.TransactOpts {
 	out := bind.NewKeyedTransactor(u.priv)
-	out.GasLimit = 300000
-	out.GasPrice = big.NewInt(10000)
+	out.GasLimit = 30000
+	out.GasPrice = big.NewInt(1000000000)
 	// increment and update the nonce
 	nonce := new(big.Int).Add(u.nonce, big.NewInt(1))
 	u.nonce = nonce

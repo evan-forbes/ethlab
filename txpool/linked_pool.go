@@ -75,6 +75,8 @@ func (pool *LinkedPool) next() (txSet, bool) {
 	return set, true
 }
 
+// The tx is some how not being added to the pool
+
 // Insert adds a set of transactions to the ordered pool. If multiple transactions are provided
 // they are treated as 'linked'. (Linked transactions run individually one after another and will be sorted
 // using the lowest gas price of all txs provided).

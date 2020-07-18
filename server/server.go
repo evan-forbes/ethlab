@@ -268,6 +268,7 @@ func (s *Server) ENSHandler(w http.ResponseWriter, r *http.Request) {
 //	Faucet
 //////////////////////////////
 
+// faucetHandler issues initial ETH to the address provided in the request
 func (s *Server) faucetHandler() http.HandlerFunc {
 	type faucetPay struct {
 		Address string   `json:"address"`
@@ -296,19 +297,32 @@ func (s *Server) faucetHandler() http.HandlerFunc {
 			w.Write(resp)
 			return
 		}
-		// check if the recipient qualifies for free eth and the address is valid
+		// TODO: check if the recipient qualifies for free eth
+		// use the root account to send some eth
 		root := s.back.Accounts["root"]
-		oneETH, _ := new(big.Int).SetString("1000000000000000000", 10)
-		tx, err := root.CreateSend(common.HexToAddress(pay.Address), oneETH)
+		tx, err := root.CreateSend(common.HexToAddress(pay.Address), pay.Amount)
 		if err != nil {
 			log.Printf("could not send one ETH upon request to %s: %s\n", pay.Address, err.Error())
 			return
 		}
+		// validate and add the transaction to txPool
 		err = s.back.AddTx(tx)
 		if err != nil {
 			log.Printf("could not send one ETH upon request to %s: %s failure to add transaction\n", pay.Address, err.Error())
 			return
 		}
+		// wait a second and see if the amount requested actually got through
+		time.Sleep(time.Millisecond * 2 * time.Duration(s.back.Delay))
+
+		rcpt, err := s.back.TxReceipt(tx.Hash())
+		if err != nil {
+			fmt.Println("could not get transaction receipt for sent eth:", err)
+		}
+		if rcpt == nil {
+			fmt.Println("could not get transaction receipt for sent eth:", err)
+
+		}
+
 		resp, _ := json.Marshal(faucetResp{Message: "success"})
 		_, err = w.Write(resp)
 		if err != nil {

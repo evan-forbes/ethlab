@@ -78,6 +78,7 @@ func (c Config) Genesis() (core.Genesis, Accounts, error) {
 		accnts[name] = acc
 	}
 	accnts.SetGasPrice(big.NewInt(10000))
+	out.GasLimit = 10000000000
 	out.Alloc = accnts.Genesis()
 	return out, accnts, err
 }
@@ -101,16 +102,10 @@ func DefaultConfig() Config {
 		InMemory:      true,
 		GenesisConfig: defaultGenesis(),
 		Allocation: map[string]string{
-			"root":   "999999999999999999999999999999999",
-			"Alice":  "10000000000000000000",
-			"Bob":    "10000000000000000000",
-			"Celine": "10000000000000000000",
-			"Dobby":  "10000000000000000000",
-			"Erin":   "10000000000000000000",
-			"Frank":  "10000000000000000000",
+			"root": "999999999999999999999999999999999",
 		},
-		GasLimit: 10485760,
-		Delay:    100,
+		GasLimit: 9000485760,
+		Delay:    50,
 		Host:     "127.0.0.1",
 		Port:     8438,
 		WSHost:   "127.0.0.1",

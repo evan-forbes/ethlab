@@ -31,7 +31,7 @@ type Thereum struct {
 	txPool   *txpool.LinkedPool
 	gasLimit uint64
 	// gasLimit GasLimiter
-	delay      uint
+	Delay      int
 	signer     types.Signer
 	database   ethdb.Database   // In memory database to store our testing data
 	blockchain *core.BlockChain // Ethereum blockchain to handle the consensus
@@ -78,8 +78,8 @@ func New(config Config, root *Account) (*Thereum, error) {
 		blockchain: bc,
 		signer:     types.NewEIP155Signer(big.NewInt(1)),
 		root:       root,
-		gasLimit:   config.GenesisConfig.GasLimit, // TODO: config and make more flexible
-		delay:      config.Delay,
+		gasLimit:   config.GasLimit, // TODO: config and make more flexible
+		Delay:      int(config.Delay),
 		Events:     filters.NewEventSystem(&filterBackend{db: db, bc: bc}, false),
 		Accounts:   accounts,
 	}
@@ -102,7 +102,6 @@ func (t *Thereum) Run(ctx context.Context, wg *sync.WaitGroup) {
 		default:
 			t.Commit()
 			// fmt.Println("block hash:", t.latestBlock.Hash().Hex())
-			time.Sleep(time.Millisecond * time.Duration(t.delay))
 		}
 	}
 }
@@ -117,6 +116,7 @@ func (t *Thereum) Commit() {
 	t.latestState = state
 	t.mu.Unlock()
 	// add optional delay before adding block to simulate pending state
+	time.Sleep(time.Millisecond * time.Duration(t.Delay))
 	t.appendBlock(block)
 
 }
@@ -137,9 +137,10 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 			// get the next set of highest paying transactions
 			txs := t.txPool.Batch(t.gasLimit)
 			// add them to the new block.
+			fmt.Println("numb of tx in block", len(txs), b.Number().String())
 			for _, tx := range txs {
-				b.AddTxWithChain(t.blockchain, tx)
-				fmt.Println("tx added to block", tx.Hash().Hex(), "Pool size", t.txPool.Len())
+				b.AddTx(tx)
+				fmt.Println("tx added to block", tx.Hash().Hex())
 			}
 		},
 	)
@@ -173,6 +174,7 @@ func (t *Thereum) AddTx(tx *types.Transaction) error {
 	if err != nil {
 		return fmt.Errorf("could not validate transaction: %s", err)
 	}
+	fmt.Println("from address", from.Hex())
 	t.txPool.Insert(from, tx)
 	fmt.Println("added tx", tx.Hash().Hex())
 	return nil
