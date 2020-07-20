@@ -83,10 +83,7 @@ func (u *User) NewTxOpts() *bind.TransactOpts {
 	out := bind.NewKeyedTransactor(u.priv)
 	out.GasLimit = 30000
 	out.GasPrice = big.NewInt(1000000000)
-	// increment and update the nonce
-	nonce := new(big.Int).Add(u.nonce, big.NewInt(1))
-	u.nonce = nonce
-	out.Nonce = nonce
+	out.Nonce = u.nonce
 	return out
 }
 
@@ -102,7 +99,14 @@ func (u *User) NewSend(to common.Address, amount, price *big.Int, lim uint64) (*
 
 // Sign uses user data to sign a transaction
 func (u *User) Sign(tx *types.Transaction) (*types.Transaction, error) {
+	// increment and update the nonce
+	u.IncrNonce()
 	return types.SignTx(tx, types.NewEIP155Signer(big.NewInt(1)), u.priv)
+}
+
+func (u *User) IncrNonce() {
+	nonce := new(big.Int).Add(u.nonce, big.NewInt(1))
+	u.nonce = nonce
 }
 
 // RequestETH asks the server to dish out some eth to an address

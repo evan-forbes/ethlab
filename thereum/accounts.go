@@ -22,14 +22,12 @@ type Account struct {
 	PrivKey *ecdsa.PrivateKey `json:"private_key"`
 	Balance *big.Int          `json:"balance"`
 	TxOpts  *bind.TransactOpts
+	Nonce   *big.Int
 }
 
 // IncrNonce increases the nonce by plus (default of 1 if plus == nil)
-func (a *Account) IncrNonce(plus *big.Int) {
-	if plus == nil {
-		plus = new(big.Int).SetInt64(1)
-	}
-	a.TxOpts.Nonce.Add(a.TxOpts.Nonce, plus)
+func (a *Account) IncrNonce() {
+	a.Nonce.Add(a.Nonce, big.NewInt(1))
 }
 
 // // SendETH signs a transaction and sends it to the client sending the provided amount of ETH
@@ -55,13 +53,14 @@ func (a *Account) IncrNonce(plus *big.Int) {
 // CreateSend returns a signed eth transfer transaction from this account
 func (a *Account) CreateSend(to common.Address, amount *big.Int) (*types.Transaction, error) {
 	tx := types.NewTransaction(
-		a.TxOpts.Nonce.Uint64(),
+		a.Nonce.Uint64(),
 		to,
 		amount,
 		a.TxOpts.GasLimit,
 		a.TxOpts.GasPrice,
 		[]byte{},
 	)
+
 	return a.Sign(tx)
 }
 
@@ -88,6 +87,7 @@ func NewAccount(name string, bal *big.Int) (*Account, error) {
 		TxOpts:  topt,
 		Balance: bal,
 		PrivKey: priv,
+		Nonce:   big.NewInt(0),
 	}, nil
 }
 
@@ -97,7 +97,7 @@ func (a *Account) Sign(tx *types.Transaction) (*types.Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
-	a.IncrNonce(big.NewInt(1))
+	a.IncrNonce()
 	return signedTx, nil
 }
 

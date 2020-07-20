@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/evan-forbes/ethlab/cmd"
@@ -75,7 +74,7 @@ func TestStarterKit(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	time.Sleep(time.Second * 1)
+	// time.Sleep(time.Second * 1)
 	bal2, err := usr2.Balance()
 	if err != nil {
 		t.Error(err)

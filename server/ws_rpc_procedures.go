@@ -115,6 +115,7 @@ func feedLogs(ctx context.Context, conn *websocket.Conn, sub *filters.Subscripti
 			return
 		case ls := <-logs:
 			for _, l := range ls {
+				fmt.Println("found a log")
 				result := logPacket{
 					Subscription: string(sub.ID),
 					Result:       l,

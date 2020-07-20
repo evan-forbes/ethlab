@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/evan-forbes/ethlab/cmd"
 	"github.com/evan-forbes/ethlab/contracts/ens"
 	"github.com/evan-forbes/ethlab/module"
@@ -26,6 +27,7 @@ func TestENS(t *testing.T) {
 	addr, err := module.ENSAddress("127.0.0.1:8000")
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	time.Sleep(time.Millisecond * 122)
 	// create a new user that has some eth
@@ -35,15 +37,21 @@ func TestENS(t *testing.T) {
 		fmt.Println(err)
 		return
 	}
-	time.Sleep(time.Millisecond * 122)
-	bal, err := usr.Client.BalanceAt(mngr.Ctx, usr.NewTxOpts().From, nil)
+	// time.Sleep(time.Millisecond * 122)
+	// bal, err := usr.Client.BalanceAt(mngr.Ctx, usr.NewTxOpts().From, nil)
+	// if err != nil {
+	// 	t.Error(err)
+	// 	return
+	// }
+	// fmt.Println(bal.String())
+	// bind to the ens contract
+	// use a websocket client
+	wscli, err := ethclient.Dial("ws://127.0.0.1:8001")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	fmt.Println(bal.String())
-	// bind to the ens contract
-	ens, err := ens.NewENS(common.HexToAddress(addr), usr.Client)
+	ens, err := ens.NewENS(common.HexToAddress(addr), wscli)
 	if err != nil {
 		t.Error(err)
 	}
@@ -53,9 +61,10 @@ func TestENS(t *testing.T) {
 	}
 	logs := make(chan types.Log)
 	// start streaming logs
-	_, err = usr.Client.SubscribeFilterLogs(mngr.Ctx, query, logs)
+	_, err = wscli.SubscribeFilterLogs(mngr.Ctx, query, logs)
 	if err != nil {
 		t.Error(err)
+		return
 	}
 	// print streamed logs
 	go func() {
@@ -64,11 +73,10 @@ func TestENS(t *testing.T) {
 			select {
 			// case <-sub.Err():
 			// 	return
-			case l, ok := <-logs:
-				if !ok {
-					return
-				}
-				fmt.Println(l)
+			case <-time.After(time.Second * 5):
+				return
+			case l := <-logs:
+				fmt.Println("log!!!!", l)
 				return
 			}
 		}
@@ -77,11 +85,14 @@ func TestENS(t *testing.T) {
 	var name32 [32]byte
 	copy(name32[:], name[:32])
 	tx, err := ens.Add(usr.NewTxOpts(), name32, common.HexToAddress("0x514910771af9ca656af840dff83e8264ecf986ca"))
-	fmt.Println("error", err)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println("transaction", tx)
+	tx, err = ens.Add(usr.NewTxOpts(), name32, common.HexToAddress("0x514910771af9ca656af840dff83e8264ecf986ca"))
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println("ens transaction", tx.Hash().Hex())
 	// wait for cancel
 	<-mngr.Done()
 }
