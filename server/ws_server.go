@@ -46,6 +46,7 @@ func (s *Server) wsHandler() http.Handler {
 			fmt.Println("error reading json with ws:", err)
 		}
 		rawPrms := string(msg.Params)
+		fmt.Println("recieved params for websocket: ", rawPrms)
 		switch {
 		case strings.Contains(rawPrms, "logs"):
 			ctx, _ := context.WithTimeout(s.ctx, time.Hour)
@@ -54,7 +55,6 @@ func (s *Server) wsHandler() http.Handler {
 			ctx, _ := context.WithTimeout(s.ctx, time.Hour)
 			subHeads(ctx, s.back, conn)
 		default:
-			w.Write(rpcError(500, fmt.Sprintf("no subscription for %s", rawPrms)))
 			conn.Close()
 		}
 	})

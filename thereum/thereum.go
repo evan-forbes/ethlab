@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"sync"
 	"time"
@@ -40,8 +41,8 @@ type Thereum struct {
 
 	// use the locked wrapper methods to access these!
 	// I hate global state, I also don't appreciate how they're returned from the ethereum data structure, blockchain
-	latestBlock *types.Block   // pending block
-	latestState *state.StateDB // pending state
+	pendingBlock *types.Block   // pending block
+	pendingState *state.StateDB // pending state
 
 	Events   *filters.EventSystem // Event system for filtering logs and events
 	Accounts Accounts             // access to initial accounts specified in config.Allocations
@@ -83,7 +84,7 @@ func New(config Config, root *Account) (*Thereum, error) {
 		Events:     filters.NewEventSystem(&filterBackend{db: db, bc: bc}, false),
 		Accounts:   accounts,
 	}
-	t.latestBlock = genBlock
+	t.pendingBlock = genBlock
 	t.chainConfig = chainConfig
 	return t, nil
 }
@@ -112,8 +113,8 @@ func (t *Thereum) Commit() {
 	// create a new block using existing transaction in the pool
 	block, state := t.nextBlock()
 	t.mu.Lock()
-	t.latestBlock = block
-	t.latestState = state
+	t.pendingBlock = block
+	t.pendingState = state
 	t.mu.Unlock()
 	// add optional delay before adding block to simulate pending state
 	time.Sleep(time.Millisecond * time.Duration(t.Delay))
@@ -234,17 +235,17 @@ func (t *Thereum) TxReceipt(hash common.Hash) (*types.Receipt, error) {
 // LatestState returns the latest state
 func (t *Thereum) LatestState() *state.StateDB {
 	t.mu.Lock()
-	state := t.latestState
+	state, err := t.blockchain.State()
+	if err != nil {
+		log.Fatal("Could not get latest state from blockchain", err)
+	}
 	t.mu.Unlock()
 	return state
 }
 
 // LatestBlock returns the latest block. Not guarenteed to be final
 func (t *Thereum) LatestBlock() *types.Block {
-	t.mu.Lock()
-	block := t.latestBlock
-	t.mu.Unlock()
-	return block
+	return t.blockchain.CurrentBlock()
 }
 
 // Shutdown begins the procedure to stop the Thereum blockchain
@@ -258,9 +259,9 @@ func (t *Thereum) TransactionCount(ctx context.Context, blockHash common.Hash) (
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if blockHash == t.latestBlock.Hash() {
-		t.latestBlock.Transactions()
-		return uint(t.latestBlock.Transactions().Len()), nil
+	if blockHash == t.LatestBlock().Hash() {
+		t.LatestBlock().Transactions()
+		return uint(t.LatestBlock().Transactions().Len()), nil
 	}
 
 	block := t.blockchain.GetBlockByHash(blockHash)
@@ -278,12 +279,13 @@ func (t *Thereum) TransactionCountByAddress(ctx context.Context, addr common.Add
 		return nil, err
 	}
 	count := state.GetNonce(addr)
+	fmt.Println("nonce", count)
 	return (*hexutil.Uint64)(&count), state.Error()
 }
 
 // GetNonce retrieves the lowest excepted nonce of an address
 func (t *Thereum) GetNonce(addr common.Address) (uint64, error) {
-	state, err := t.blockchain.StateAt(t.latestBlock.Hash())
+	state, err := t.blockchain.StateAt(t.LatestBlock().Hash())
 	if err != nil {
 		return 0, err
 	}
@@ -308,7 +310,7 @@ func (t *Thereum) BlockByNumber(ctx context.Context, number *big.Int) (*types.Bl
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if number == nil || number.Cmp(t.latestBlock.Number()) == 0 {
+	if number == nil || number.Cmp(t.LatestBlock().Number()) == 0 {
 		return t.blockchain.CurrentBlock(), nil
 	}
 

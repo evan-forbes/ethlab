@@ -136,17 +136,13 @@ func getTxCount(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	}
 	addr := common.HexToAddress(hexAddr)
 
-	hexHash, ok := params[1].(string)
-	if !ok {
-		return nil, errors.New("block numbers not yet supported, try a block hash")
-	}
+	// hexHash, ok := params[1].(string)
+	// if !ok {
+	// 	return nil, errors.New("block numbers not yet supported, try a block hash")
+	// }
 	// type switch, to add numbers later?
 	var hsh common.Hash
-	if hexHash == "latest" {
-		hsh = eth.LatestBlock().Hash()
-	} else {
-		hsh = common.HexToHash(hexHash)
-	}
+	hsh = eth.LatestBlock().Hash()
 	count, err := eth.TransactionCountByAddress(context.Background(), addr, hsh)
 	if err != nil {
 		return nil, err
@@ -191,9 +187,9 @@ func getBalanceAt(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
 	return out, nil
 }
 
-func getNonce(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
-	return nil, nil
-}
+// func getNonce(eth *thereum.Thereum, msg *rpcMessage) (*rpcMessage, error) {
+// 	return
+// }
 
 // func (p *sendTxParams) UnmarshalJSON(in []byte) error {
 // 	type params struct {

@@ -91,6 +91,7 @@ func subLogs(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, ra
 	sink := make(chan []*types.Log)
 	sub, err := eth.Events.SubscribeLogs(query.FilterQuery(), sink)
 	if err != nil {
+		fmt.Println("subscription error")
 	}
 	err = conn.WriteJSON(rpcMessage{
 		Version: "2.0",

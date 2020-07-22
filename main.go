@@ -12,8 +12,6 @@ import (
 
 // TODO:
 /*
- - port the abigen command from buddy
-	. alter to provide super easy muxing
  - txpool that can link transactions
  - pause and set break points for the chain
  - option to stop the chain when nothing is happening

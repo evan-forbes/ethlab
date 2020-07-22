@@ -77,6 +77,15 @@ func (u *User) Balance() (*big.Int, error) {
 	return u.Client.BalanceAt(context.Background(), u.From, nil)
 }
 
+func (u *User) SyncNonce() error {
+	nonce, err := u.Client.NonceAt(context.Background(), u.From, nil)
+	if err != nil {
+		return err
+	}
+	u.nonce = new(big.Int).SetUint64(nonce)
+	return nil
+}
+
 // NewTxOpts issues a new transact opt with sane defaults and signs using User
 // u's private key
 func (u *User) NewTxOpts() *bind.TransactOpts {

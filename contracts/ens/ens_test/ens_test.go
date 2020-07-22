@@ -29,7 +29,7 @@ func TestENS(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	time.Sleep(time.Millisecond * 122)
+	// time.Sleep(time.Millisecond * 122)
 	// create a new user that has some eth
 	usr, err := module.StarterKit("127.0.0.1:8000")
 	if err != nil {
@@ -51,7 +51,7 @@ func TestENS(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	ens, err := ens.NewENS(common.HexToAddress(addr), wscli)
+	ens, err := ens.NewENS(common.HexToAddress(addr), usr.Client)
 	if err != nil {
 		t.Error(err)
 	}
@@ -73,7 +73,7 @@ func TestENS(t *testing.T) {
 			select {
 			// case <-sub.Err():
 			// 	return
-			case <-time.After(time.Second * 5):
+			case <-time.After(time.Second * 3):
 				return
 			case l := <-logs:
 				fmt.Println("log!!!!", l)

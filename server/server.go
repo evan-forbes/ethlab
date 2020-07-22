@@ -300,7 +300,7 @@ func (s *Server) faucetHandler() http.HandlerFunc {
 		// TODO: check if the recipient qualifies for free eth
 		// use the root account to send some eth
 		root := s.back.Accounts["root"]
-		root.IncrNonce()
+		// root.IncrNonce()
 		tx, err := root.CreateSend(common.HexToAddress(pay.Address), pay.Amount)
 		if err != nil {
 			log.Printf("could not send one ETH upon request to %s: %s\n", pay.Address, err.Error())

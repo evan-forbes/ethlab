@@ -101,6 +101,38 @@ func TestStarterKit(t *testing.T) {
 	<-mngr.Done()
 }
 
+func TestSyncNonce(t *testing.T) {
+	// setup
+	mngr := cmd.NewManager(context.Background(), nil)
+	// listen for cancels
+	go mngr.Listen()
+	// start the server
+	_, err := server.LaunchServer(mngr.Ctx, mngr.WG)
+	if err != nil {
+		t.Error(err)
+	}
+	// make a user
+	usr, err := module.StarterKit("127.0.0.1:8000")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = module.RequestETH("127.0.0.1:8000", usr.From.Hex(), big.NewInt(1000000000000000000))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = module.RequestETH("127.0.0.1:8000", usr.From.Hex(), big.NewInt(1000000000000000000))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = usr.SyncNonce()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // func TestDeploy(t *testing.T) {
 // 	deploy := ens.Deploy
 // 	mngr := cmd.NewManager(context.Background(), nil)
