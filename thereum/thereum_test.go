@@ -116,14 +116,9 @@ func TestCreateSend(t *testing.T) {
 
 }
 
-// func TestDeploy(t *testing.T) {
-
-// }
-
-// func TestContract(t *testing.T) {
-
-// }
-
-// func TestLog(t *testing.T) {
-
-// }
+func TestSubscribeLogs(t *testing.T) {
+	eth, mngr := setupThereum(t)
+	
+	// deploy a contract to deploy logs
+	eth.
+}

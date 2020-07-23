@@ -50,7 +50,7 @@ func NewUser() (*User, error) {
 	}
 	out := &User{
 		priv:  priv,
-		nonce: big.NewInt(1),
+		nonce: big.NewInt(0),
 	}
 	txopts := out.NewTxOpts()
 	out.From = txopts.From
@@ -109,7 +109,7 @@ func (u *User) NewSend(to common.Address, amount, price *big.Int, lim uint64) (*
 // Sign uses user data to sign a transaction
 func (u *User) Sign(tx *types.Transaction) (*types.Transaction, error) {
 	// increment and update the nonce
-	u.IncrNonce()
+	// u.IncrNonce()
 	return types.SignTx(tx, types.NewEIP155Signer(big.NewInt(1)), u.priv)
 }
 

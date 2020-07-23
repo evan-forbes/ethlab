@@ -45,7 +45,9 @@ func TestRequestETH(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	fmt.Println(bal.String())
+	if bal.Cmp(big.NewInt(4000000000000000000)) != 0 {
+		t.Error("invalid balance, wanted 4000000000000000000")
+	}
 	mngr.Cancel()
 	<-mngr.Done()
 }
@@ -74,7 +76,6 @@ func TestStarterKit(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	// time.Sleep(time.Second * 1)
 	bal2, err := usr2.Balance()
 	if err != nil {
 		t.Error(err)

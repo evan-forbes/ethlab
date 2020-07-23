@@ -70,9 +70,6 @@ func New(config Config, root *Account) (*Thereum, error) {
 	chainConfig := params.AllEthashProtocolChanges
 	chainConfig.ChainID = big.NewInt(1)
 	bc, _ := core.NewBlockChain(db, nil, chainConfig, ethash.NewFaker(), vm.Config{}, nil)
-	for _, acc := range accounts {
-		fmt.Printf("%s\t\t%s\t%s\n", acc.Name, acc.Address.Hex(), acc.Balance.String())
-	}
 	t := &Thereum{
 		txPool:     txpool.NewLinkedPool(),
 		database:   db,
@@ -138,10 +135,9 @@ func (t *Thereum) nextBlock() (*types.Block, *state.StateDB) {
 			// get the next set of highest paying transactions
 			txs := t.txPool.Batch(t.gasLimit)
 			// add them to the new block.
-			fmt.Println("numb of tx in block", len(txs), b.Number().String())
 			for _, tx := range txs {
 				b.AddTx(tx)
-				fmt.Println("tx added to block", tx.Hash().Hex())
+				fmt.Println("finalized: ", tx.Hash().Hex())
 			}
 		},
 	)
@@ -175,9 +171,8 @@ func (t *Thereum) AddTx(tx *types.Transaction) error {
 	if err != nil {
 		return fmt.Errorf("could not validate transaction: %s", err)
 	}
-	fmt.Println("from address", from.Hex())
 	t.txPool.Insert(from, tx)
-	fmt.Println("added tx", tx.Hash().Hex())
+	fmt.Println("pooled    ", tx.Hash().Hex())
 	return nil
 }
 
@@ -279,7 +274,6 @@ func (t *Thereum) TransactionCountByAddress(ctx context.Context, addr common.Add
 		return nil, err
 	}
 	count := state.GetNonce(addr)
-	fmt.Println("nonce", count)
 	return (*hexutil.Uint64)(&count), state.Error()
 }
 

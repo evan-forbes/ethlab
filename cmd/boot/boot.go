@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -53,9 +52,6 @@ func Boot(c *cli.Context) error {
 	go func() {
 		log.Fatal(srvr.ServeWS(fmt.Sprintf("%s:%d", config.WSHost, config.WSPort)))
 	}()
-
-	// wait for a hot second to make sure the servers are up and running // TODO: use something more definitive
-	time.Sleep(time.Millisecond * 88)
 
 	// dial for a client to
 	client, err := ethclient.Dial(fmt.Sprintf("http://%s:%d", config.Host, config.Port))

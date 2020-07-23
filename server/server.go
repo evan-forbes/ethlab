@@ -123,7 +123,6 @@ func (s *Server) rpcHandler() http.HandlerFunc {
 		pro, has := s.muxer.Route(req.Method)
 		if !has {
 			log.Println("no procedure for method: ", req.Method)
-			fmt.Println("no procedure for method: ", req.Method)
 			w.Write(rpcError(0, fmt.Sprintf("method %s not supported", req.Method)))
 			return
 		}
@@ -249,7 +248,8 @@ func (s *Server) InstallENS() error {
 	if err != nil {
 		return err
 	}
-	addr, _, _, err := ens.DeployENS(root.TxOpts, client)
+	addr, tx, _, err := ens.DeployENS(root.TxOpts, client)
+	fmt.Println("deployed ens:", tx.Hash().Hex())
 	s.ens = addr
 	return err
 }

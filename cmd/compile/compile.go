@@ -54,7 +54,7 @@ func findAllFiles(path, substr string, recCount int) (out []string, err error) {
 		if file.IsDir() {
 			next, err := findAllFiles(pathToFile, substr, recCount+1)
 			if err != nil {
-				fmt.Println(fmt.Println("failure to find files:", err))
+				fmt.Println("failure to find files:", err)
 				continue
 			}
 			out = append(out, next...)

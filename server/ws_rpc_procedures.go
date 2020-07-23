@@ -100,6 +100,7 @@ func subLogs(ctx context.Context, eth *thereum.Thereum, conn *websocket.Conn, ra
 	})
 	if err != nil {
 		// TODO: handle errors in a more meaningful and way
+		fmt.Println("could not write json to ws", err)
 	}
 	// Write the logs to the connection
 	feedLogs(ctx, conn, sub, sink)
@@ -116,7 +117,7 @@ func feedLogs(ctx context.Context, conn *websocket.Conn, sub *filters.Subscripti
 			return
 		case ls := <-logs:
 			for _, l := range ls {
-				fmt.Println("found a log")
+				fmt.Println("------", "found a log", l)
 				result := logPacket{
 					Subscription: string(sub.ID),
 					Result:       l,

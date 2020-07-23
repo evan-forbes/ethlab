@@ -3,6 +3,7 @@ package ens_test
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
@@ -35,6 +36,11 @@ func TestENS(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 		fmt.Println(err)
+		return
+	}
+	err = module.RequestETH("127.0.0.1:8000", usr.From.Hex(), big.NewInt(2000000000000000000))
+	if err != nil {
+		t.Error(err)
 		return
 	}
 	// time.Sleep(time.Millisecond * 122)

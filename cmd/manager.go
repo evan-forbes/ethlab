@@ -24,11 +24,6 @@ type Manager struct {
 // NewManager return a pointer to a setup manager.
 func NewManager(superctx context.Context, wg *sync.WaitGroup) *Manager {
 	ctx, cancel := context.WithCancel(superctx)
-	// f, err := os.OpenFile("file.Log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	// if err != nil {
-	// 	fmt.Println("problem creating log file")
-	// 	cancel()
-	// }
 	if wg == nil {
 		wg = &sync.WaitGroup{}
 	}
