@@ -17,6 +17,9 @@ contract ENS {
     // AddDomains logs new domains
     event AddDomain(bytes32 indexed name, address indexed pointer, address indexed owner);
 
+    // AddDomains logs new domains
+    event LogTest(address indexed owner);
+
     // change alters an already existing domain pointer
     function change(bytes32 name, address addr) public {
         require(msg.sender == domains[name].owner, "user does not have rights to desired domain");
@@ -30,6 +33,10 @@ contract ENS {
         domains[name].pointTo = addr;
         domains[name].owner = msg.sender;
         emit AddDomain(name, addr, domains[name].owner);
+    }
+
+    function logTest() public {
+        emit LogTest(msg.sender);
     }
 }
 

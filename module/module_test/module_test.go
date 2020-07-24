@@ -134,6 +134,40 @@ func TestSyncNonce(t *testing.T) {
 	}
 }
 
+func bootWithUser(t *testing.T) (*module.User, *cmd.Manager, error) {
+	// setup
+	mngr := cmd.NewManager(context.Background(), nil)
+	// listen for cancels
+	go mngr.Listen()
+	// start the server
+	_, err := server.LaunchServer(mngr.Ctx, mngr.WG)
+	if err != nil {
+		t.Error(err)
+		return nil, mngr, err
+	}
+	// make a user
+	usr, err := module.StarterKit("127.0.0.1:8000")
+	if err != nil {
+		t.Error(err)
+		return nil, mngr, err
+	}
+	err = module.RequestETH("127.0.0.1:8000", usr.From.Hex(), big.NewInt(1000000000000000000))
+	if err != nil {
+		t.Error(err)
+		return nil, mngr, err
+	}
+	return usr, mngr, nil
+}
+
+// func TestSubscribeLogs(t *testing.T) {
+// 	usr, _, err := bootWithUser(t)
+// 	if err != nil {
+// 		t.Error(err)
+// 		return
+// 	}
+
+// }
+
 // func TestDeploy(t *testing.T) {
 // 	deploy := ens.Deploy
 // 	mngr := cmd.NewManager(context.Background(), nil)

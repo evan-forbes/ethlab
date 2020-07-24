@@ -131,9 +131,9 @@ func New{{.Type}}(address common.Address, backend bind.ContractBackend) (*{{.Typ
 // Deploy installs {{.Type}} to an ethereum node via the user provided
 // by implementing module.Delpoyer
 func Deploy(u *module.User) (addr common.Address, err error) {
-	*******************************************************
+	// ****************************************************
 	////////  INSERT MODULE DEPLOYMENT CODE HERE   ////////
-	*******************************************************
+	// ***************************************************
 	return addr, err
 }
 

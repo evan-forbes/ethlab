@@ -31,6 +31,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/pkg/errors"
 )
 
 //////////////////////////////////////
@@ -90,7 +91,7 @@ func Bind(types []string, abis []string, bytecodes []string, pkg string) (string
 		// Parse the actual ABI to generate the binding for
 		evmABI, err := abi.JSON(strings.NewReader(abis[i]))
 		if err != nil {
-			return "", "", err
+			return "", "", errors.Wrap(err, "could not open abi json")
 		}
 		// Strip any whitespace from the JSON ABI
 		strippedABI := strings.Map(func(r rune) rune {
@@ -255,29 +256,29 @@ func Bind(types []string, abis []string, bytecodes []string, pkg string) (string
 	}
 	tmpl := template.Must(template.New("").Funcs(funcs).Parse(tmplSourceGo))
 	if err := tmpl.Execute(buffer, data); err != nil {
-		return "", "", err
+		return "", "", errors.Wrap(err, "failure to init new source template")
 	}
 	evTmpl := template.Must(template.New("").Funcs(funcs).Parse(eventsTmpl))
 	if err := evTmpl.Execute(eventsBuffer, data); err != nil {
-		return "", "", err
+		return "", "", errors.Wrap(err, "failure to init new events template")
 	}
 	inTmpl := template.Must(template.New("").Funcs(funcs).Parse(interfaceTemplate))
 	if err := inTmpl.Execute(interfaceBuffer, data); err != nil {
-		return "", "", err
+		return "", "", errors.Wrap(err, "failure to init interface template")
 	}
 	// For Go bindings pass the code through gofmt to clean it up
 	if lang == LangGo {
 		code, err := format.Source(buffer.Bytes())
 		if err != nil {
-			return "", "", fmt.Errorf("%v\n%s", err, buffer)
+			return "", "", fmt.Errorf("failure to bind to source template %v\n%s", err, buffer)
 		}
 		eventCode, err := format.Source(eventsBuffer.Bytes())
 		if err != nil {
-			return "", "", fmt.Errorf("%v\n%s", err, eventsBuffer)
+			return "", "", fmt.Errorf("failure to bind to events template %v\n%s", err, eventsBuffer)
 		}
 		interfaceCode, err := format.Source(interfaceBuffer.Bytes())
 		if err != nil {
-			return "", "", err
+			return "", "", errors.Wrap(err, "failure to bind to interface template")
 		}
 		fmt.Println(string(interfaceCode))
 		return string(code), string(eventCode), nil

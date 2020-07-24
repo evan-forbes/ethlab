@@ -9,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/evan-forbes/ethlab/cmd"
+	"github.com/evan-forbes/ethlab/contracts/ens"
 	"github.com/evan-forbes/ethlab/module"
 	"github.com/evan-forbes/ethlab/thereum"
 	"github.com/matryer/is"
@@ -310,4 +312,79 @@ func TestGetNonce(t *testing.T) {
 	}
 	usr, err := module.NewUser()
 	client.NonceAt(mngr.Ctx, usr.NewTxOpts().From, nil)
+}
+
+func bootWithUser(t *testing.T) (*module.User, *Server, error) {
+	// setup
+	mngr := cmd.NewManager(context.Background(), nil)
+	// listen for cancels
+	go mngr.Listen()
+	// start the server
+	srv, err := LaunchServer(mngr.Ctx, mngr.WG)
+	if err != nil {
+		t.Error(err)
+		return nil, srv, err
+	}
+	// make a user
+	usr, err := module.StarterKit("127.0.0.1:8000")
+	if err != nil {
+		t.Error(err)
+		return nil, srv, err
+	}
+	err = module.RequestETH("127.0.0.1:8000", usr.From.Hex(), big.NewInt(1000000000000000000))
+	if err != nil {
+		t.Error(err)
+		return nil, srv, err
+	}
+	return usr, srv, nil
+}
+
+// so for some reason the transactions are being finalized but not being caught by the logger.
+func TestSubscribeLogs(t *testing.T) {
+	usr, srv, err := bootWithUser(t)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	addr, err := ens.Deploy(usr)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	query := ethereum.FilterQuery{
+		Addresses: []common.Address{
+			addr,
+		},
+	}
+	logs := make(chan []*types.Log)
+	sub, err := srv.back.Events.SubscribeLogs(query, logs)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	go func() {
+		for {
+			select {
+			case err := <-sub.Err():
+				t.Error(err)
+				return
+			case log := <-logs:
+				for _, l := range log {
+					fmt.Println("found a log !!!!!!! ", l.TxHash.Hex())
+				}
+			}
+		}
+	}()
+	time.Sleep(100 * time.Millisecond)
+	ens, err := ens.NewENS(addr, usr.Client)
+	if err != nil {
+		t.Error(err)
+	}
+	tx, err := ens.LogTest(usr.NewTxOpts())
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println("homebrewed tx", tx.Hash().Hex())
+	time.Sleep(5 * time.Second)
+
 }

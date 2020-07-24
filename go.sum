@@ -60,6 +60,7 @@ github.com/ethereum/go-ethereum v1.9.12/go.mod h1:PvsVkQmhZFx92Y+h2ylythYlheEDt/
 github.com/ethereum/go-ethereum v1.9.13 h1:rOPqjSngvs1VSYH2H+PMPiWt4VEulvNRbFgqiGqJM3E=
 github.com/ethereum/go-ethereum v1.9.14 h1:/rGoPYujLeajAHyDs8aZKYcLrurLdUJP9AzHk73QNr0=
 github.com/ethereum/go-ethereum v1.9.16 h1:WQTmbO9RelgTouA5UlRfd4KnXqSarphmvn7XNXUmvhk=
+github.com/ethereum/go-ethereum v1.9.17 h1:2D02O8KcoyQHxfizvMi0vGXXzFIkQTMeKXwt0+4SYEA=
 github.com/evan-forbes/buddy v0.0.0-20200227200140-42299f5d889a h1:p0byzHvPK5/5CrDBXdoJ/eUQ+Yo0e5DWlhajPERduB0=
 github.com/evan-forbes/buddy v0.0.0-20200227200140-42299f5d889a/go.mod h1:plOygNhPvUMK8ZZYhnyhoTzAeWGdg2s8bU/gr1C++oc=
 github.com/fatih/color v1.3.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=

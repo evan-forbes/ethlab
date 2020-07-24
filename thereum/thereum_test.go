@@ -115,10 +115,3 @@ func TestCreateSend(t *testing.T) {
 	fmt.Println(string(j))
 
 }
-
-func TestSubscribeLogs(t *testing.T) {
-	eth, mngr := setupThereum(t)
-	
-	// deploy a contract to deploy logs
-	eth.
-}
