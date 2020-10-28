@@ -1,4 +1,4 @@
-# Buddy
+# ethlab
 
 __This project is a work in progress and I'm adding commands as I need them.__
 
@@ -58,3 +58,6 @@ func main() {
 ``` 
 Doing something similar with the official abigen command would require twice the compiling, code generating, and keeping track of two contract instances. 
 
+## Other Stuff
+
+There are included tools to run a fast barebones ethereum node with custom transaction pools, variable block times, gas limits, etc. Combined with the smart contract generation above, one can create a single binary for testing smart contract systems.
