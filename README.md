@@ -10,7 +10,7 @@ Interface focused go bindings for ethereum contracts. Allows for easy mock testi
 
 ### Install
 
-using go 1.11 or greter
+using go 1.11 or greater
 
 ```
 go get https://github.com/evan-forbes/ethlab
