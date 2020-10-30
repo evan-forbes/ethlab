@@ -8,16 +8,24 @@ Interface focused go bindings for ethereum contracts. Allows for easy mock testi
 
 [go-ethereum](https://github.com/ethereum/go-ethereum)
 
+### Install
+
+using go 1.11 or greter
+
+```
+go get https://github.com/evan-forbes/ethlab
+```
+
 ## Usage
 
 ### Smart contract binding generation using abigen sub command
 Use the abigen command to generate go bindings from an abi file. If you include a binary of the compiled contract, then a deployment method is also generated. This command uses much of the same code as the abigen cli command included in go-ethereum
 ```
-buddy abigen "path/to/abi/and/maybe/a/bin" -p packageName
+ethlab abigen "path/to/abi/and/maybe/a/bin" -p packageName
 ```
 or in the working directory with a specified abi or bin file
 ```
-buddy abigen --pkg=packageName --abi=contract.abi --bin=contract.bin
+ethlab abigen --pkg=packageName --abi=contract.abi --bin=contract.bin
 ```
 Multiple contracts can be generated into the same package if so desired.
 
